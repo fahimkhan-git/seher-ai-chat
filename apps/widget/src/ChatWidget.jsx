@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./styles.css";
 
 const DEFAULT_PRIMARY_COLOR = "#6158ff";
@@ -160,6 +160,25 @@ export function ChatWidget({
   const ctaOptions = CTA_OPTIONS;
 
   const bhkOptions = BHK_OPTIONS;
+
+  const [avatarUrl, setAvatarUrl] = useState(
+    resolvedTheme.avatarUrl || DEFAULT_AVATAR_URL
+  );
+
+  useEffect(() => {
+    const nextUrl = resolvedTheme.avatarUrl || DEFAULT_AVATAR_URL;
+    setAvatarUrl(nextUrl);
+  }, [resolvedTheme.avatarUrl]);
+
+  const handleAvatarError = useCallback((event) => {
+    if (event?.currentTarget?.dataset?.fallbackApplied === "true") {
+      return;
+    }
+    if (event?.currentTarget) {
+      event.currentTarget.dataset.fallbackApplied = "true";
+    }
+    setAvatarUrl(DEFAULT_AVATAR_URL);
+  }, []);
 
   const primaryRgb = useMemo(
     () =>
@@ -451,12 +470,13 @@ export function ChatWidget({
             style={{ background: resolvedTheme.primaryColor }}
           >
             <div className="homesfy-widget__header-left">
-              {resolvedTheme.avatarUrl && (
+              {avatarUrl && (
                 <div className="homesfy-widget__avatar-shell">
                   <img
-                    src={resolvedTheme.avatarUrl}
+                    src={avatarUrl}
                     alt={resolvedTheme.agentName}
                     className="homesfy-widget__agent-avatar"
+                    onError={handleAvatarError}
                   />
                   <span className="homesfy-widget__avatar-ring" aria-hidden />
                 </div>
@@ -487,11 +507,12 @@ export function ChatWidget({
                   key={message.id}
                   className={`homesfy-widget__message-row homesfy-widget__message-row--${message.type}`}
                 >
-                  {!isUser && resolvedTheme.avatarUrl && (
+                  {!isUser && avatarUrl && (
                     <div className="homesfy-widget__message-avatar homesfy-widget__message-avatar--agent">
                       <img
-                        src={resolvedTheme.avatarUrl}
+                        src={avatarUrl}
                         alt={resolvedTheme.agentName}
+                        onError={handleAvatarError}
                       />
                     </div>
                   )}
@@ -509,11 +530,12 @@ export function ChatWidget({
 
             {isTyping && (
               <div className="homesfy-widget__message-row homesfy-widget__message-row--system">
-                {resolvedTheme.avatarUrl && (
+                {avatarUrl && (
                   <div className="homesfy-widget__message-avatar homesfy-widget__message-avatar--agent">
                     <img
-                      src={resolvedTheme.avatarUrl}
+                      src={avatarUrl}
                       alt={resolvedTheme.agentName}
+                      onError={handleAvatarError}
                     />
                   </div>
                 )}
@@ -608,11 +630,14 @@ export function ChatWidget({
         onClick={handleToggle}
       >
         <span className="homesfy-widget__bubble-glow" aria-hidden />
-        <img
-          src={resolvedTheme.avatarUrl}
-          alt="Agent"
-          className="homesfy-widget__bubble-avatar"
-        />
+        {avatarUrl && (
+          <img
+            src={avatarUrl}
+            alt="Agent"
+            className="homesfy-widget__bubble-avatar"
+            onError={handleAvatarError}
+          />
+        )}
         <div className="homesfy-widget__bubble-text">
           <span className="homesfy-widget__bubble-title">
             {resolvedTheme.bubbleTitle}
