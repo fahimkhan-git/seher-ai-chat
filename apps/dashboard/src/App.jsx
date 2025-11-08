@@ -22,7 +22,7 @@ export default function App() {
 
       <div className="relative z-10">
         <header className="border-b border-white/5 bg-white/5 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
+          <div className="mx-auto flex max-w-none items-center justify-between px-6 py-6">
             <div className="space-y-1">
               <p className="text-[11px] uppercase tracking-[0.4em] text-slate-300">
                 Homesfy Experience Cloud
@@ -38,7 +38,7 @@ export default function App() {
             </div>
           </div>
           <nav className="border-t border-white/5">
-            <div className="mx-auto flex max-w-6xl gap-6 px-6">
+            <div className="mx-auto flex max-w-none gap-6 px-6">
               {navItems.map((item) => (
                 <NavLink
                   key={item.to}
@@ -65,7 +65,7 @@ export default function App() {
           </nav>
         </header>
 
-        <main className="mx-auto max-w-6xl px-6 py-10">
+        <main className="mx-auto max-w-none px-6 py-10">
           <Routes>
             <Route path="/" element={<LeadsPage />} />
             <Route path="/leads" element={<LeadsPage />} />

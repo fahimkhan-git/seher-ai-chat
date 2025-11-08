@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api.js";
-import { LeadsTable } from "../components/LeadsTable.jsx";
+import {
+  LeadsTable,
+  resolveLocation,
+  resolveSource,
+  resolveWebsiteInfo,
+} from "../components/LeadsTable.jsx";
 
 export function LeadsPage() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [micrositeFilter, setMicrositeFilter] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [datePreset, setDatePreset] = useState("30d");
   const [customStart, setCustomStart] = useState("");
@@ -16,10 +20,6 @@ export function LeadsPage() {
       setLoading(true);
       try {
         const params = {};
-
-        if (micrositeFilter) {
-          params.microsite = micrositeFilter;
-        }
 
         if (searchTerm) {
           params.search = searchTerm;
@@ -46,7 +46,7 @@ export function LeadsPage() {
     }
 
     loadLeads();
-  }, [micrositeFilter, searchTerm, datePreset, customStart, customEnd]);
+  }, [searchTerm, datePreset, customStart, customEnd]);
 
   const stats = useMemo(() => {
     if (!leads.length) {
@@ -108,6 +108,99 @@ export function LeadsPage() {
     };
   }, [leads]);
 
+  const handleExport = () => {
+    if (!leads.length) {
+      return;
+    }
+
+    const escapeCell = (value) => {
+      if (value === null || value === undefined) {
+        return "";
+      }
+      const stringValue = String(value);
+      if (/[",\n]/.test(stringValue)) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
+    };
+
+    const headers = [
+      "Lead ID",
+      "Captured At",
+      "Phone",
+      "Microsite",
+      "Website",
+      "Environment",
+      "Landing Page",
+      "Interest",
+      "Source (Display)",
+      "UTM Source",
+      "UTM Medium",
+      "UTM Campaign",
+      "Location",
+      "Timezone",
+      "IP Address",
+      "Status",
+    ];
+
+    const rows = leads.map((lead, index) => {
+      const rawId =
+        (typeof lead.id === "string" && lead.id) ||
+        (typeof lead._id === "string" && lead._id) ||
+        String(index + 1);
+      const website = resolveWebsiteInfo(lead);
+      const websiteLabel = lead.metadata?.website
+        ? String(lead.metadata.website)
+        : website.label;
+      const micrositeLabel = lead.microsite ? String(lead.microsite) : "";
+      const utm = lead.metadata?.visitor?.utm || {};
+      const locationLabel = resolveLocation(lead);
+      const timezone = lead.metadata?.visitor?.location?.timezone || "";
+      const ip = lead.metadata?.visitor?.ip || "";
+      const formattedPhone = formatPhoneForExport(lead);
+
+      return [
+        rawId,
+        lead.createdAt ? new Date(lead.createdAt).toISOString() : "",
+        formattedPhone,
+        micrositeLabel,
+        websiteLabel,
+        website.environment || "",
+        website.landingPage || "",
+        lead.bhkType || "",
+        resolveSource(lead),
+        utm.source || "",
+        utm.medium || "",
+        utm.campaign || "",
+        locationLabel,
+        timezone,
+        ip,
+        lead.status || "new",
+      ];
+    });
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map(escapeCell).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const timestamp = new Date()
+      .toISOString()
+      .slice(0, 19)
+      .replace(/[:T]/g, "-");
+
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `leads-${timestamp}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-8">
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_40px_120px_rgba(8,47,73,0.25)] backdrop-blur">
@@ -145,7 +238,7 @@ export function LeadsPage() {
 
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.25)] backdrop-blur">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center">
             <div className="relative w-full max-w-sm">
               <input
                 type="search"
@@ -166,46 +259,46 @@ export function LeadsPage() {
               </span>
             </div>
 
-            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
-              <input
-                type="text"
-                placeholder="Filter by microsite"
-                value={micrositeFilter}
-                onChange={(event) => setMicrositeFilter(event.target.value)}
-                className="w-full max-w-xs rounded-xl border border-white/10 bg-white/10 px-3 py-3 text-sm text-white shadow-inner shadow-white/10 placeholder:text-slate-300 focus:border-sky-400 focus:outline-none"
-              />
-
-              <DateFilters
-                preset={datePreset}
-                onPresetChange={(value) => {
-                  setDatePreset(value);
-                  if (value !== "custom") {
-                    setCustomStart("");
-                    setCustomEnd("");
-                  }
-                }}
-                customStart={customStart}
-                customEnd={customEnd}
-                onCustomChange={({ start, end }) => {
-                  setCustomStart(start);
-                  setCustomEnd(end);
-                }}
-              />
-            </div>
+            <DateFilters
+              preset={datePreset}
+              onPresetChange={(value) => {
+                setDatePreset(value);
+                if (value !== "custom") {
+                  setCustomStart("");
+                  setCustomEnd("");
+                }
+              }}
+              customStart={customStart}
+              customEnd={customEnd}
+              onCustomChange={({ start, end }) => {
+                setCustomStart(start);
+                setCustomEnd(end);
+              }}
+            />
           </div>
 
-          <button
-            onClick={() => {
-              setMicrositeFilter("");
-              setSearchTerm("");
-              setDatePreset("30d");
-              setCustomStart("");
-              setCustomEnd("");
-            }}
-            className="self-start rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-sky-300 transition hover:border-sky-400/40 hover:text-sky-200"
-          >
-            Clear filters
-          </button>
+          <div className="flex flex-col gap-2 self-start sm:flex-row">
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={loading || !leads.length}
+              className="rounded-full border border-emerald-400/40 bg-emerald-400/20 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-[0_12px_30px_rgba(16,185,129,0.35)] transition hover:border-emerald-300/60 hover:text-white disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-slate-400"
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm("");
+                setDatePreset("30d");
+                setCustomStart("");
+                setCustomEnd("");
+              }}
+              className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-sky-300 transition hover:border-sky-400/40 hover:text-sky-200"
+            >
+              Clear filters
+            </button>
+          </div>
         </div>
       </section>
 
@@ -260,6 +353,27 @@ function StatCard({ label, value, variant = "primary" }) {
   );
 }
 
+function formatPhoneForExport(lead) {
+  const normalizedPhone = typeof lead.phone === "string" ? lead.phone.trim() : "";
+  const phoneDialCode = lead.metadata?.phoneDialCode;
+  const phoneSubscriber = lead.metadata?.phoneSubscriber;
+
+  if (phoneDialCode && phoneSubscriber) {
+    return `${phoneDialCode} ${phoneSubscriber}`;
+  }
+
+  if (normalizedPhone && /^\+\d{4,}$/.test(normalizedPhone)) {
+    const dialCodeMatch = normalizedPhone.match(/^\+\d{1,4}/);
+    if (dialCodeMatch) {
+      const dialCode = dialCodeMatch[0];
+      const subscriberPart = normalizedPhone.slice(dialCode.length);
+      return subscriberPart ? `${dialCode} ${subscriberPart}` : normalizedPhone;
+    }
+  }
+
+  return normalizedPhone;
+}
+
 function resolveDateRange({ datePreset, customStart, customEnd }) {
   const now = new Date();
 
@@ -276,8 +390,6 @@ function resolveDateRange({ datePreset, customStart, customEnd }) {
   const offsets = {
     "7d": 6,
     "30d": 29,
-    "90d": 89,
-    "365d": 364,
   };
 
   if (!offsets[datePreset]) {
@@ -299,11 +411,11 @@ function DateFilters({
   customEnd,
   onCustomChange,
 }) {
+  const startInputRef = useRef(null);
+  const endInputRef = useRef(null);
   const presets = [
     { value: "7d", label: "Last 7 days" },
     { value: "30d", label: "Last 30 days" },
-    { value: "90d", label: "Last 90 days" },
-    { value: "365d", label: "Last 12 months" },
     { value: "custom", label: "Custom" },
   ];
 
@@ -340,6 +452,10 @@ function DateFilters({
   useEffect(() => {
     if (isPickerOpen) {
       updatePickerPosition();
+      requestAnimationFrame(() => {
+        startInputRef.current?.focus();
+        startInputRef.current?.showPicker?.();
+      });
     }
   }, [isPickerOpen]);
 
@@ -376,7 +492,7 @@ function DateFilters({
   }, [isPickerOpen]);
 
   return (
-    <div className="relative flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+    <div className="relative flex flex-col gap-2 sm:flex-row sm:items-center">
       <div className="flex flex-wrap gap-2">
         {presets.map((option) => (
           <button
@@ -433,6 +549,7 @@ function DateFilters({
               <input
                 type="date"
                 value={customStart}
+                ref={startInputRef}
                 onChange={(event) =>
                   onCustomChange({ start: event.target.value, end: customEnd })
                 }
@@ -444,6 +561,7 @@ function DateFilters({
               <input
                 type="date"
                 value={customEnd}
+                ref={endInputRef}
                 onChange={(event) =>
                   onCustomChange({ start: customStart, end: event.target.value })
                 }
