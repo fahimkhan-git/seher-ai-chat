@@ -5,10 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Homesfy Widget Dashboard</title>
     <script>
-      window.__HOMESFY_API_BASE_URL =
-        import.meta.env.VITE_API_BASE_URL ||
-        window.__HOMESFY_API_BASE_URL ||
-        "https://api-alpha-ten-43-dzidx3jt6-fahimkhan-gits-projects.vercel.app";
+      (function () {
+        var existing =
+          (typeof window !== "undefined" && window.__HOMESFY_API_BASE_URL) ||
+          (typeof globalThis !== "undefined" &&
+            globalThis.__HOMESFY_API_BASE_URL);
+        window.__HOMESFY_API_BASE_URL =
+          existing || "https://api-alpha-ten-43.vercel.app";
+      })();
     </script>
   </head>
   <body class="bg-slate-100">
