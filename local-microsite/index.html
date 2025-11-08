@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Homesfy Widget Local Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 0;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #e0f2fe, #e9d5ff);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .card {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 24px;
+        box-shadow: 0 40px 120px rgba(15, 23, 42, 0.2);
+        padding: 48px;
+        max-width: 520px;
+        text-align: center;
+      }
+      h1 {
+        font-size: 2.25rem;
+        margin-bottom: 0.75rem;
+        color: #0f172a;
+      }
+      p {
+        color: #475569;
+        line-height: 1.6;
+      }
+      code {
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Homesfy Chat Widget</h1>
+      <p>
+        This microsite is served from <code>http://localhost:8080</code> to test the
+        embed script against the local API (<code>http://localhost:4000</code>) and widget
+        bundle (<code>http://localhost:4173</code>).
+      </p>
+      <p>
+        The chat bubble will auto-open within a few seconds. Complete the flow to save a
+        lead and verify it appears in the dashboard and MongoDB Atlas.
+      </p>
+    </div>
+
+    <script
+      src="http://127.0.0.1:5001/widget.js?v=20251108"
+      data-project="default"
+      data-api-base-url="http://localhost:4000"
+      data-microsite="local-test"
+      async
+      onload="window.HomesfyChat && window.HomesfyChat.init && window.HomesfyChat.init({ element: this });"
+    ></script>
+  </body>
+</html>
+

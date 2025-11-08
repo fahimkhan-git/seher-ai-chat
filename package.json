@@ -1,0 +1,21 @@
+{
+  "name": "homesfy-chat-bot",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/dashboard",
+    "apps/widget"
+  ],
+  "scripts": {
+    "dev:api": "npm --prefix apps/api run dev",
+    "dev:dashboard": "npm --prefix apps/dashboard run dev",
+    "build:widget": "npm --prefix apps/widget run build",
+    "dev:widget": "npm --prefix apps/widget run dev"
+  },
+  "devDependencies": {
+    "vite": "^5.2.0"
+  },
+  "dependencies": {
+    "@remix-run/router": "^1.23.0"
+  }
+}

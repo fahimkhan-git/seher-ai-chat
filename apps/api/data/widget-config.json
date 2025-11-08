@@ -1,0 +1,16 @@
+{
+  "configs": [
+    {
+      "id": "b70b6522-70ee-40f0-b5a2-1ca3635b3e74",
+      "projectId": "default",
+      "agentName": "Riya from Homesfy",
+      "avatarUrl": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNzlzZ2R4b3J2OHJ2MjFpd3RiZW5sbmxwOHVzb3RrdmNmZTh5Z25mYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/g9582DNuQppxC/giphy.gif",
+      "primaryColor": "#6158ff",
+      "bubblePosition": "bottom-right",
+      "autoOpenDelayMs": 4000,
+      "welcomeMessage": "Hi, I’m Riya from Homesfy 👋\nHow can I help you today?",
+      "createdAt": "2025-11-07T17:15:11.270Z",
+      "updatedAt": "2025-11-07T17:15:11.270Z"
+    }
+  ]
+}

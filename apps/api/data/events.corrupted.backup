@@ -1,0 +1,49 @@
+{
+  "events": [
+    {
+      "id": "38197dcf-1d84-421c-b34f-cd788df61bfe",
+      "type": "chat_shown",
+      "projectId": "default",
+      "microsite": "local-test",
+      "createdAt": "2025-11-08T03:59:53.026Z"
+    },
+    {
+      "id": "d156a091-6ea4-487c-9327-a84e6bea5876",
+      "type": "chat_shown",
+      "projectId": "default",
+      "microsite": "local-test",
+      "payload": {
+        "projectId": "default",
+        "microsite": "local-test",
+        "at": "2025-11-08T03:59:52.507Z"
+      },
+      "createdAt": "2025-11-08T03:59:52.510Z"
+    },
+    {
+      "id": "ce8e27b9-a5c2-49f3-babe-3e8141359939",
+      "type": "chat_shown",
+      "projectId": "default",
+      "microsite": "local-test",
+      "payload": {
+        "projectId": "default",
+        "microsite": "local-test",
+        "at": "2025-11-08T03:59:52.320Z"
+      },
+      "createdAt": "2025-11-08T03:59:52.332Z"
+    },
+    {
+      "id": "8f96333a-b0dc-4a1b-8d3a-604ee2271aa0",
+      "type": "chat_shown",
+      "projectId": "default",
+      "microsite": "local-test",
+      "createdAt": "2025-11-08T03:59:52.329Z"
+    }
+  ]
+}
+ "chat_shown",
+      "projectId": "default",
+      "microsite": "local-test",
+      "createdAt": "2025-11-08T03:59:52.329Z"
+    }
+  ]
+}
