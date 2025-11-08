@@ -2,6 +2,7 @@ import express from "express";
 import { createLead, listLeads } from "../storage/leadStore.js";
 import { recordEvent } from "../storage/eventStore.js";
 import { createChatSession } from "../storage/chatSessionStore.js";
+import { normalizePhone } from "../utils/phoneValidation.js";
 
 const router = express.Router();
 
@@ -86,12 +87,50 @@ router.post("/", async (req, res) => {
         ? phone.trim()
         : undefined;
 
+    let normalizedPhoneResult = null;
+    if (sanitizedPhone) {
+      normalizedPhoneResult = normalizePhone(sanitizedPhone);
+      if (normalizedPhoneResult.error) {
+        return res.status(400).json({ message: normalizedPhoneResult.error });
+      }
+    }
+
+    const normalizedPhone = normalizedPhoneResult?.value;
+    let metadataPayload =
+      metadata && typeof metadata === "object" ? { ...metadata } : undefined;
+
+    if (normalizedPhoneResult && metadataPayload) {
+      metadataPayload.phoneCountry =
+        metadataPayload.phoneCountry ??
+        normalizedPhoneResult.country?.name ??
+        metadataPayload.phoneCountry;
+      metadataPayload.phoneCountryCode =
+        metadataPayload.phoneCountryCode ??
+        normalizedPhoneResult.country?.countryCode ??
+        metadataPayload.phoneCountryCode;
+      metadataPayload.phoneDialCode =
+        metadataPayload.phoneDialCode ??
+        normalizedPhoneResult.country?.code ??
+        metadataPayload.phoneDialCode;
+      metadataPayload.phoneSubscriber =
+        metadataPayload.phoneSubscriber ??
+        normalizedPhoneResult.subscriber ??
+        metadataPayload.phoneSubscriber;
+    } else if (normalizedPhoneResult && !metadataPayload) {
+      metadataPayload = {
+        phoneCountry: normalizedPhoneResult.country?.name,
+        phoneCountryCode: normalizedPhoneResult.country?.countryCode,
+        phoneDialCode: normalizedPhoneResult.country?.code,
+        phoneSubscriber: normalizedPhoneResult.subscriber,
+      };
+    }
+
     const lead = await createLead({
-      phone: sanitizedPhone,
+      phone: normalizedPhone,
       bhk: normalizedBhk.numeric,
       bhkType: normalizedBhk.type,
       microsite,
-      metadata,
+      metadata: metadataPayload,
       conversation,
     });
 
@@ -100,10 +139,10 @@ router.post("/", async (req, res) => {
         microsite,
         projectId: metadata?.projectId,
         leadId: lead.id,
-        phone: sanitizedPhone,
+        phone: normalizedPhone ?? sanitizedPhone,
         bhkType: normalizedBhk.type,
         conversation,
-        metadata,
+        metadata: metadataPayload,
       });
     } catch (error) {
       console.error("Failed to store chat session", error);
