@@ -108,10 +108,15 @@ npm --prefix apps/api run lint   # if a linter is introduced
 
 1. Provision MongoDB (optional) and set `DATA_STORE=mongo` + `MONGO_URI` in your production environment.  
    With file storage, ensure the `DATA_DIRECTORY` path is on durable storage.
-2. Deploy `apps/api` to your platform of choice:
+2. **Vercel**: the platform file system is read-only, so you must supply a MongoDB Atlas (or similar) connection string. Set the following environment variables in the project:
+   - `DATA_STORE=mongo`
+   - `MONGO_URI=<your mongodb+srv:// URI>`
+   - `ALLOWED_ORIGINS=https://dashboard-seven-brown-56-ten.vercel.app,https://widget-eight-ebon-chi.vercel.app` (add any domains that should call the API)
+   The server now defaults to Mongo automatically when running on Vercel. Deployments without `MONGO_URI` will fail fast with a descriptive error.
+3. Deploy `apps/api` to your platform of choice:
    - **Vercel** – create a Node Serverless project pointing at `apps/api/package.json`.
    - **Render/Fly.io** – containerise or run as a Node service.
-3. Configure environment variables in the hosting dashboard (mirror your `.env` file).
+4. Configure environment variables in the hosting dashboard (mirror your `.env` file).
 
 ### Widget
 
@@ -135,6 +140,7 @@ npm --prefix apps/api run lint   # if a linter is introduced
 ### Dashboard
 
 Deploy `apps/dashboard` as a static SPA (Vercel, Netlify, etc.). Point it at the same API by setting `VITE_API_BASE_URL` in that environment.
+When deploying to Vercel, the included `vercel.json` ensures all routes rewrite to `index.html`, so deep links like `/analytics` work out of the box.
 
 ---
 

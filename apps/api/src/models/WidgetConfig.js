@@ -19,6 +19,18 @@ const widgetConfigSchema = new mongoose.Schema(
       type: String,
       default: "#6158ff",
     },
+    followupMessage: {
+      type: String,
+      default: "",
+    },
+    phonePrompt: {
+      type: String,
+      default: "",
+    },
+    thankYouMessage: {
+      type: String,
+      default: "",
+    },
     bubblePosition: {
       type: String,
       enum: ["bottom-right", "bottom-left"],

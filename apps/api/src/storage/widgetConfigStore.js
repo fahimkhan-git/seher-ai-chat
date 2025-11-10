@@ -18,12 +18,39 @@ async function saveStore(store) {
 
 const DEFAULT_THEME = {
   agentName: "Riya from Homesfy",
-  avatarUrl: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNzlzZ2R4b3J2OHJ2MjFpd3RiZW5sbmxwOHVzb3RrdmNmZTh5Z25mYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/g9582DNuQppxC/giphy.gif",
+  avatarUrl:
+    "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNzlzZ2R4b3J2OHJ2MjFpd3RiZW5sbmxwOHVzb3RrdmNmZTh5Z25mYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/g9582DNuQppxC/giphy.gif",
   primaryColor: "#6158ff",
+  followupMessage: "",
+  phonePrompt: "",
+  thankYouMessage: "",
   bubblePosition: "bottom-right",
   autoOpenDelayMs: 4000,
   welcomeMessage: "Hi, I’m Riya from Homesfy 👋\nHow can I help you today?",
 };
+
+const ALLOWED_FIELDS = [
+  "agentName",
+  "avatarUrl",
+  "primaryColor",
+  "followupMessage",
+  "phonePrompt",
+  "thankYouMessage",
+  "bubblePosition",
+  "autoOpenDelayMs",
+  "welcomeMessage",
+  "createdBy",
+  "updatedBy",
+];
+
+function sanitizeUpdate(update = {}) {
+  return ALLOWED_FIELDS.reduce((acc, field) => {
+    if (Object.prototype.hasOwnProperty.call(update, field)) {
+      acc[field] = update[field];
+    }
+    return acc;
+  }, {});
+}
 
 export async function getWidgetConfig(projectId) {
   if (useMongo) {
@@ -69,18 +96,20 @@ export async function getWidgetConfig(projectId) {
 }
 
 export async function upsertWidgetConfig(projectId, update) {
+  const sanitizedUpdate = sanitizeUpdate(update);
+
   if (useMongo) {
-    const now = new Date().toISOString();
     const updated = await WidgetConfig.findOneAndUpdate(
       { projectId },
       {
-        $setOnInsert: { ...DEFAULT_THEME, projectId, createdAt: now },
-        $set: { ...update, updatedAt: now },
+        $set: { ...sanitizedUpdate },
+        $setOnInsert: { projectId },
       },
       {
         new: true,
         upsert: true,
         lean: true,
+        setDefaultsOnInsert: true,
       }
     );
 
@@ -99,7 +128,7 @@ export async function upsertWidgetConfig(projectId, update) {
       id: crypto.randomUUID(),
       projectId,
       ...DEFAULT_THEME,
-      ...update,
+      ...sanitizedUpdate,
       createdAt: now,
       updatedAt: now,
     };
@@ -110,7 +139,7 @@ export async function upsertWidgetConfig(projectId, update) {
 
   const updated = {
     ...store.configs[index],
-    ...update,
+    ...sanitizedUpdate,
     projectId,
     updatedAt: now,
   };

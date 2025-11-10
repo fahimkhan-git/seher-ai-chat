@@ -41,10 +41,16 @@
   cursor: pointer;
   transition: transform 0.2s ease;
   pointer-events: auto;
+  outline: none;
 }
 
 .homesfy-widget__bubble-button:hover {
   transform: translateY(-2px);
+}
+
+.homesfy-widget__bubble-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
 }
 
 .homesfy-widget__bubble-avatar {
@@ -157,6 +163,12 @@
   width: 32px;
   height: 32px;
   cursor: pointer;
+  outline: none;
+}
+
+.homesfy-widget__close:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .homesfy-widget__hero {
@@ -665,6 +677,11 @@
 }
 
 @media (max-width: 640px) {
+  .homesfy-widget__bottom-right {
+    bottom: 88px;
+    right: 16px;
+  }
+
   .homesfy-widget__window {
     width: 100vw;
   }
@@ -672,7 +689,7 @@
   .homesfy-widget__bubble-button {
     width: 64px;
     height: 64px;
-    padding: 6px;
+    padding: 0px;
     border-radius: 10px;
     display: grid;
     place-items: center;
