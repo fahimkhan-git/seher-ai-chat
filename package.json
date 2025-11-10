@@ -10,7 +10,8 @@
     "dev:api": "npm --prefix apps/api run dev",
     "dev:dashboard": "npm --prefix apps/dashboard run dev",
     "build:widget": "npm --prefix apps/widget run build",
-    "dev:widget": "npm --prefix apps/widget run dev"
+    "dev:widget": "npm --prefix apps/widget run dev",
+    "migrate:file-to-mongo": "node scripts/migrate-file-store-to-mongo.mjs"
   },
   "devDependencies": {
     "vite": "^5.2.0"

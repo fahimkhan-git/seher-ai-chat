@@ -113,10 +113,13 @@ npm --prefix apps/api run lint   # if a linter is introduced
    - `MONGO_URI=<your mongodb+srv:// URI>`
    - `ALLOWED_ORIGINS=https://dashboard-seven-brown-56-ten.vercel.app,https://widget-eight-ebon-chi.vercel.app` (add any domains that should call the API)
    The server now defaults to Mongo automatically when running on Vercel. Deployments without `MONGO_URI` will fail fast with a descriptive error.
-3. Deploy `apps/api` to your platform of choice:
+3. **Migrating existing leads/events** (optional, one-time):
+   - Ensure `MONGO_URI` in `apps/api/.env` points to the target cluster.
+   - Run `npm run migrate:file-to-mongo` from the repo root to copy data from `apps/api/data/*.json` into MongoDB (skips documents already imported).
+4. Deploy `apps/api` to your platform of choice:
    - **Vercel** – create a Node Serverless project pointing at `apps/api/package.json`.
    - **Render/Fly.io** – containerise or run as a Node service.
-4. Configure environment variables in the hosting dashboard (mirror your `.env` file).
+5. Configure environment variables in the hosting dashboard (mirror your `.env` file).
 
 ### Widget
 
