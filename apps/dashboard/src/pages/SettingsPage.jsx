@@ -128,12 +128,36 @@ export function SettingsPage() {
 
         <div className="space-y-2 md:col-span-2">
           <label className="text-sm font-medium text-slate-700">
-            Follow-up Message
+            Follow-up Message (after CTA)
           </label>
           <textarea
             rows={2}
             value={formState.followupMessage || ""}
             onChange={handleChange("followupMessage")}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+
+        <div className="space-y-2 md:col-span-2">
+          <label className="text-sm font-medium text-slate-700">
+            Configuration Prompt
+          </label>
+          <textarea
+            rows={2}
+            value={formState.bhkPrompt || ""}
+            onChange={handleChange("bhkPrompt")}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+
+        <div className="space-y-2 md:col-span-2">
+          <label className="text-sm font-medium text-slate-700">
+            Inventory Message
+          </label>
+          <textarea
+            rows={2}
+            value={formState.inventoryMessage || ""}
+            onChange={handleChange("inventoryMessage")}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none"
           />
         </div>

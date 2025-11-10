@@ -141,6 +141,7 @@ npm --prefix apps/api run lint   # if a linter is introduced
 
 Deploy `apps/dashboard` as a static SPA (Vercel, Netlify, etc.). Point it at the same API by setting `VITE_API_BASE_URL` in that environment.
 When deploying to Vercel, the included `vercel.json` ensures all routes rewrite to `index.html`, so deep links like `/analytics` work out of the box.
+The settings page now lets you tailor every scripted widget response—welcome, follow-up, configuration prompt, inventory reassurance, phone prompt, and thank-you—without touching code.
 
 ---
 

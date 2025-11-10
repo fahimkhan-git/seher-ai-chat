@@ -21,15 +21,23 @@ const widgetConfigSchema = new mongoose.Schema(
     },
     followupMessage: {
       type: String,
-      default: "",
+      default: "Sure… I’ll send that across right away!",
+    },
+    bhkPrompt: {
+      type: String,
+      default: "Which configuration you are looking for?",
+    },
+    inventoryMessage: {
+      type: String,
+      default: "That’s cool… we have inventory available with us.",
     },
     phonePrompt: {
       type: String,
-      default: "",
+      default: "Please enter your mobile number...",
     },
     thankYouMessage: {
       type: String,
-      default: "",
+      default: "Thanks! Our expert will call you shortly 📞",
     },
     bubblePosition: {
       type: String,

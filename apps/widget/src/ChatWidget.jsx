@@ -368,7 +368,9 @@ export function ChatWidget({
         theme.welcomeMessage ||
         "Hey, I'm Pooja Agarwal! How can I help you understand this project?",
       ctaAcknowledgement:
-        theme.ctaAcknowledgement || "Sure… I’ll send that across right away!",
+        theme.followupMessage ||
+        theme.ctaAcknowledgement ||
+        "Sure… I’ll send that across right away!",
       bhkPrompt:
         theme.bhkPrompt || "Which configuration you are looking for?",
       inventoryMessage:
