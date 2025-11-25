@@ -119,12 +119,30 @@ async function init(options = {}) {
     scriptElement?.dataset.projectId ||
     envDefaultProjectId ||
     "default";
-  const apiBaseUrl =
-    options.apiBaseUrl ||
+  // Get API base URL - prioritize data attribute, then env, then window global
+  // Never use localhost in production - it will cause CORS errors
+  let apiBaseUrl = options.apiBaseUrl ||
     scriptElement?.dataset.apiBaseUrl ||
     envApiBaseUrl ||
-    window?.HOMESFY_WIDGET_API_BASE_URL ||
-    "http://localhost:4000";
+    window?.HOMESFY_WIDGET_API_BASE_URL;
+  
+  // If no API URL provided and we're on a production domain, use production API
+  if (!apiBaseUrl) {
+    const isProduction = window.location.hostname !== 'localhost' && 
+                         window.location.hostname !== '127.0.0.1' &&
+                         !window.location.hostname.includes('localhost');
+    
+    if (isProduction) {
+      // Default to production API if on production domain
+      apiBaseUrl = "https://api-4oq41g49f-fahimkhan-gits-projects.vercel.app";
+      console.warn("HomesfyChat: No API URL specified, using production API:", apiBaseUrl);
+    } else {
+      // Only use localhost for local development
+      apiBaseUrl = "http://localhost:4000";
+    }
+  }
+  
+  console.log("HomesfyChat: Using API Base URL:", apiBaseUrl);
   const microsite =
     options.microsite || scriptElement?.dataset.microsite || window.location.hostname;
 
