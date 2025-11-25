@@ -1,0 +1,49 @@
+{
+  "propertyInfo": {
+    "projectName": "Nivasa Enchante",
+    "developer": "Nivasa Group",
+    "location": "Dhanori - Lohegaon, Pune",
+    "availableBhk": ["2 BHK", "3 BHK"],
+    "pricing": {
+      "2 BHK": "₹ 79.80 Lakhs - ₹ 80.80 Lakhs",
+      "3 BHK": "₹ 1.04 Cr - ₹ 1.06 Cr"
+    },
+    "area": "787-1046 Sq.ft",
+    "amenities": [
+      "Club Zone",
+      "Comfi Zone",
+      "Yahoo Zone",
+      "Hurray Zone",
+      "Clubhouse",
+      "Yoga and Meditation Zone",
+      "Multipurpose Court",
+      "Pool",
+      "Gym",
+      "Landscaped Gardens",
+      "Jogging Tracks",
+      "Eco-friendly features",
+      "Earthquake-resistant structure"
+    ],
+    "possession": "Check with team for exact possession date",
+    "specialOffers": "Pay 20% Now & Rest on Possession, No Bank Loan Required. Spanning 4.15 acres with 9 towers and 672 apartments."
+  },
+  "instructions": {
+    "step1": "Go to Dashboard Settings page",
+    "step2": "Select project ID (e.g., 5796 or create new)",
+    "step3": "Scroll to 'Property Information (for AI Conversations)' section",
+    "step4": "Fill in all the fields with the data above",
+    "step5": "Click 'Save Changes'",
+    "step6": "Test the chat widget - AI should now answer questions about Nivasa Enchante"
+  },
+  "testQuestions": [
+    "What is the name of this project?",
+    "Where is the location?",
+    "What BHK are available?",
+    "What is the price of 2 BHK?",
+    "What is the price of 3 BHK?",
+    "What amenities do you have?",
+    "What is the area?",
+    "What are the special offers?"
+  ]
+}
+

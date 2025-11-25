@@ -1,8 +1,45 @@
-node_modules
-dist
-.env
-.DS_Store
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
 *.log
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.tmp
+apps/api/.env.tmp
 
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vercel
 .vercel
+
+# Data files (don't commit data)
+apps/api/data/*.json
+!apps/api/data/*.example.json
+apps/api/data/*.tmp
+apps/api/data/*.backup
+
+# Test files
+test-*.html
+test-*.sh
+local-microsite/*.bak
+
+# Temporary files
+*.tmp
+*.backup

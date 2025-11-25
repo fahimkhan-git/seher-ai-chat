@@ -4,6 +4,53 @@
     <meta charset="utf-8" />
     <title>Homesfy Widget Local Test</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>" />
+    <script>
+      // Prevent Live Server and other auto-reload mechanisms
+      (function() {
+        // Disable Live Server WebSocket reload
+        if (window.WebSocket) {
+          const originalWebSocket = window.WebSocket;
+          window.WebSocket = function(url, protocols) {
+            if (url && (url.includes('/ws') || url.includes('live-server'))) {
+              console.log('HomesfyChat: Blocked Live Server WebSocket');
+              return {
+                send: function() {},
+                close: function() {},
+                addEventListener: function() {},
+                removeEventListener: function() {},
+                onmessage: null,
+                onerror: null,
+                onopen: null,
+                onclose: null
+              };
+            }
+            return new originalWebSocket(url, protocols);
+          };
+        }
+        
+        // Prevent any location.reload calls
+        let reloadBlocked = false;
+        const originalReload = window.location.reload;
+        window.location.reload = function() {
+          if (!reloadBlocked) {
+            console.warn('HomesfyChat: Blocked page reload attempt');
+            reloadBlocked = true;
+            setTimeout(() => { reloadBlocked = false; }, 1000);
+          }
+          return false;
+        };
+        
+        // Track page loads to prevent reload loops
+        const loadCount = parseInt(sessionStorage.getItem('pageLoadCount') || '0') + 1;
+        sessionStorage.setItem('pageLoadCount', loadCount.toString());
+        if (loadCount > 3) {
+          console.warn('HomesfyChat: Multiple page loads detected, clearing session');
+          sessionStorage.clear();
+          window.HomesfyWidgetLoaded = false;
+        }
+      })();
+    </script>
     <style>
       :root {
         color-scheme: light;
@@ -57,14 +104,56 @@
       </p>
     </div>
 
-    <script
-    src="http://127.0.0.1:5001/widget.js"
-    data-project="default"
-    data-api-base-url="http://localhost:4000"
-    data-microsite="local-test"
-    async
-    onload="window.HomesfyChat && window.HomesfyChat.init && window.HomesfyChat.init({ element: this });"
-  ></script>
+    <script>
+      // Prevent multiple widget initializations and reload loops
+      (function() {
+        // Check if already loaded to prevent reload loops
+        if (window.HomesfyWidgetLoaded || sessionStorage.getItem('HomesfyWidgetLoaded')) {
+          console.log('HomesfyChat: Widget already loaded, skipping initialization');
+          return;
+        }
+        
+        // Mark as loaded immediately
+        window.HomesfyWidgetLoaded = true;
+        sessionStorage.setItem('HomesfyWidgetLoaded', 'true');
+        
+        // Prevent page reload on any errors
+        window.addEventListener('error', function(e) {
+          e.preventDefault();
+          console.warn('HomesfyChat: Error caught, preventing reload:', e.message);
+          return false;
+        }, true);
+        
+        // Prevent unhandled promise rejections from causing reloads
+        window.addEventListener('unhandledrejection', function(e) {
+          e.preventDefault();
+          console.warn('HomesfyChat: Unhandled promise rejection caught:', e.reason);
+          return false;
+        });
+        
+        // Load widget script with error handling
+        try {
+          const script = document.createElement('script');
+          script.src = 'http://127.0.0.1:5001/widget.js?v=' + Date.now();
+          script.setAttribute('data-project', '5796');
+          script.setAttribute('data-api-base-url', 'http://localhost:4000');
+          script.setAttribute('data-microsite', 'local-test');
+          script.setAttribute('data-auto-init', 'true');
+          script.async = true;
+          script.onerror = function() {
+            console.error('HomesfyChat: Failed to load widget script');
+            // Don't reload on error
+          };
+          script.onload = function() {
+            console.log('HomesfyChat: Widget script loaded successfully');
+          };
+          document.body.appendChild(script);
+        } catch (error) {
+          console.error('HomesfyChat: Error loading widget:', error);
+          // Don't reload on error
+        }
+      })();
+    </script>
   </body>
 </html>
 

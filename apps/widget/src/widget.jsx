@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { ChatWidget } from "./ChatWidget.jsx";
 import styles from "./styles.css?inline";
+import { detectPropertyFromPage } from "./propertyDetector.js";
 
 const mountedWidgets = new Map();
 
@@ -67,6 +68,7 @@ function mountWidget({
   target,
 }) {
   if (mountedWidgets.has(projectId)) {
+    console.log("HomesfyChat: Widget already mounted for project", projectId);
     return mountedWidgets.get(projectId);
   }
 
@@ -113,6 +115,7 @@ async function init(options = {}) {
   const projectId =
     options.projectId ||
     scriptElement?.dataset.project ||
+    scriptElement?.dataset.projectId ||
     envDefaultProjectId ||
     "default";
   const apiBaseUrl =
@@ -126,7 +129,37 @@ async function init(options = {}) {
 
   const themeOverrides = options.theme || {};
   const remoteTheme = await fetchWidgetTheme(apiBaseUrl, projectId);
-  const theme = { ...remoteTheme, ...themeOverrides };
+  
+  // ALWAYS detect property information from the current page
+  // This ensures the widget works on ANY microsite without manual configuration
+  let detectedPropertyInfo = detectPropertyFromPage();
+  
+  // If property detected, send it to API to update config for this project
+  if (detectedPropertyInfo && apiBaseUrl && Object.keys(detectedPropertyInfo).length > 0) {
+    console.log("HomesfyChat: Detected property from page, sending to API:", detectedPropertyInfo);
+    try {
+      await fetch(`${apiBaseUrl}/api/widget-config/${encodeURIComponent(projectId)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ propertyInfo: detectedPropertyInfo }),
+      }).catch(() => {
+        // Silently fail - widget will still work with detected info
+      });
+    } catch (error) {
+      console.warn("HomesfyChat: Failed to save detected property info", error);
+    }
+  }
+  
+  // Always prioritize detected property info over remote config
+  // This allows the same script to work on different microsites
+  const theme = { 
+    ...remoteTheme, 
+    ...themeOverrides,
+    // Use detected property info if available, otherwise use remote config
+    propertyInfo: detectedPropertyInfo && Object.keys(detectedPropertyInfo).length > 0
+      ? detectedPropertyInfo 
+      : (remoteTheme?.propertyInfo || {})
+  };
 
   return mountWidget({
     apiBaseUrl,
@@ -142,8 +175,15 @@ const HomesfyChat = { init };
 if (typeof window !== "undefined") {
   window.HomesfyChat = HomesfyChat;
 
-  if (document.currentScript?.dataset.autoInit !== "false") {
-    init();
+  // Only auto-init if explicitly enabled and not already initialized
+  if (document.currentScript?.dataset.autoInit === "true" && !window.HomesfyChatInitialized) {
+    try {
+      window.HomesfyChatInitialized = true;
+      init();
+    } catch (error) {
+      console.error("HomesfyChat: Failed to auto-initialize", error);
+      window.HomesfyChatInitialized = false;
+    }
   }
 }
 
