@@ -39,8 +39,21 @@ function expandAllowedOrigins(origins) {
 }
 
 async function bootstrap() {
+  // Connect to MongoDB if needed (with connection pooling for serverless)
   if (config.dataStore === "mongo") {
-    await mongoose.connect(config.mongoUri);
+    try {
+      await mongoose.connect(config.mongoUri, {
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+      });
+      console.log("✅ MongoDB connected");
+    } catch (error) {
+      console.error("❌ MongoDB connection error:", error.message);
+      // Don't throw in serverless - allow graceful degradation
+      if (!process.env.VERCEL) {
+        throw error;
+      }
+    }
   } else {
     console.log("Using local JSON datastore. Mongo connection skipped.");
   }
@@ -51,12 +64,18 @@ async function bootstrap() {
     : expandAllowedOrigins(config.allowedOrigins);
   const socketOrigin = expandedOrigins.includes("*") ? "*" : expandedOrigins;
 
-  const server = http.createServer(app);
-  const io = new SocketIOServer(server, {
-    cors: {
-      origin: socketOrigin,
-    },
-  });
+  // Only create Socket.IO server for non-serverless environments
+  let server = null;
+  let io = null;
+  
+  if (!process.env.VERCEL) {
+    server = http.createServer(app);
+    io = new SocketIOServer(server, {
+      cors: {
+        origin: socketOrigin,
+      },
+    });
+  }
 
   app.use(express.json());
   const corsOptions = expandedOrigins.includes("*")
@@ -75,7 +94,9 @@ async function bootstrap() {
   app.options("*", cors(corsOptions));
 
   app.use((req, res, next) => {
-    req.io = io;
+    if (io) {
+      req.io = io;
+    }
     next();
   });
 
@@ -91,12 +112,15 @@ async function bootstrap() {
     res.type("application/json").send("{}");
   });
 
-  io.on("connection", (socket) => {
-    const { microsite } = socket.handshake.query;
-    if (microsite) {
-      socket.join(microsite);
-    }
-  });
+  // Socket.IO only works in non-serverless environments
+  if (io) {
+    io.on("connection", (socket) => {
+      const { microsite } = socket.handshake.query;
+      if (microsite) {
+        socket.join(microsite);
+      }
+    });
+  }
 
   app.get("/health", async (_req, res) => {
     const aiAvailable = process.env.GEMINI_API_KEY && 
@@ -138,13 +162,52 @@ async function bootstrap() {
   
   checkAIAvailability();
 
-  server.listen(config.port, () => {
-    console.log(`API server listening on port ${config.port}`);
+  // Handle favicon requests
+  app.get("/favicon.ico", (_req, res) => {
+    res.status(204).end();
+  });
+
+  // Error handling middleware
+  app.use((err, req, res, next) => {
+    console.error("Error:", err);
+    res.status(err.status || 500).json({
+      error: err.message || "Internal Server Error",
+      status: "error"
+    });
+  });
+
+  // 404 handler
+  app.use((req, res) => {
+    res.status(404).json({
+      error: "Not Found",
+      status: "error",
+      path: req.path
+    });
+  });
+
+  // For Vercel serverless, export the app
+  if (process.env.VERCEL) {
+    return app;
+  }
+
+  // For local development, start the server
+  if (server) {
+    server.listen(config.port, () => {
+      console.log(`API server listening on port ${config.port}`);
+    });
+  }
+  
+  return app;
+}
+
+// For local development
+if (!process.env.VERCEL) {
+  bootstrap().catch((error) => {
+    console.error("Failed to start API server", error);
+    process.exit(1);
   });
 }
 
-bootstrap().catch((error) => {
-  console.error("Failed to start API server", error);
-  process.exit(1);
-});
+// Export bootstrap function for Vercel serverless
+export default bootstrap;
 
