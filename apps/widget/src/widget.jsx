@@ -112,6 +112,7 @@ function mountWidget({
 
 async function init(options = {}) {
   const scriptElement = options.element || document.currentScript;
+  
   const projectId =
     options.projectId ||
     scriptElement?.dataset.project ||
@@ -177,14 +178,15 @@ if (typeof window !== "undefined") {
 
   // Auto-init when script loads (unless explicitly disabled)
   // Check if auto-init is disabled
-  const autoInitDisabled = document.currentScript?.dataset.autoInit === "false";
+  const scriptElement = document.currentScript;
+  const autoInitDisabled = scriptElement?.dataset.autoInit === "false";
   
   // Auto-initialize if:
   // 1. Not already initialized
   // 2. Auto-init is not explicitly disabled
   // 3. Script has required data attributes (project or apiBaseUrl)
-  const hasRequiredAttrs = document.currentScript?.dataset.project || 
-                           document.currentScript?.dataset.apiBaseUrl ||
+  const hasRequiredAttrs = scriptElement?.dataset.project || 
+                           scriptElement?.dataset.apiBaseUrl ||
                            window?.HOMESFY_WIDGET_API_BASE_URL;
   
   if (!window.HomesfyChatInitialized && !autoInitDisabled && hasRequiredAttrs) {
@@ -194,7 +196,15 @@ if (typeof window !== "undefined") {
         try {
           window.HomesfyChatInitialized = true;
           console.log("HomesfyChat: Auto-initializing widget...");
-          init();
+          console.log("HomesfyChat: Script element:", scriptElement);
+          console.log("HomesfyChat: Project ID:", scriptElement?.dataset.project);
+          console.log("HomesfyChat: API Base URL:", scriptElement?.dataset.apiBaseUrl);
+          init().then(() => {
+            console.log("HomesfyChat: Widget initialized successfully");
+          }).catch((error) => {
+            console.error("HomesfyChat: Initialization error:", error);
+            window.HomesfyChatInitialized = false;
+          });
         } catch (error) {
           console.error("HomesfyChat: Failed to auto-initialize", error);
           window.HomesfyChatInitialized = false;
@@ -202,12 +212,19 @@ if (typeof window !== "undefined") {
       }
     };
     
+    // Always wait for DOM to be ready
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", initializeWidget);
     } else {
-      // DOM already loaded, initialize immediately
-      setTimeout(initializeWidget, 0);
+      // DOM already loaded, initialize after a short delay to ensure everything is ready
+      setTimeout(initializeWidget, 100);
     }
+  } else {
+    console.log("HomesfyChat: Auto-init skipped", {
+      initialized: window.HomesfyChatInitialized,
+      disabled: autoInitDisabled,
+      hasAttrs: hasRequiredAttrs
+    });
   }
 }
 
