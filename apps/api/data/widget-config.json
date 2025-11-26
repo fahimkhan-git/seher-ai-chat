@@ -3,9 +3,9 @@
     {
       "id": "b70b6522-70ee-40f0-b5a2-1ca3635b3e74",
       "projectId": "default",
-      "agentName": "Riya from Homesfy",
+      "agentName": "Ziya from Homesfy",
       "avatarUrl": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNzlzZ2R4b3J2OHJ2MjFpd3RiZW5sbmxwOHVzb3RrdmNmZTh5Z25mYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/g9582DNuQppxC/giphy.gif",
-      "primaryColor": "#1b6b4b",
+      "primaryColor": "#049B5A",
       "followupMessage": "Sure… I’ll send that across right away!",
       "bhkPrompt": "Which configuration you are looking for?",
       "inventoryMessage": "That’s cool… we have inventory available with us.",
@@ -13,7 +13,7 @@
       "thankYouMessage": "Thanks! Our expert will call you shortly 📞",
       "bubblePosition": "bottom-right",
       "autoOpenDelayMs": 4000,
-      "welcomeMessage": "Hi, I’m Riya from Homesfy 👋\nHow can I help you today?",
+      "welcomeMessage": "Hi, I’m Ziya from Homesfy 👋\nHow can I help you today?",
       "createdAt": "2025-11-07T17:15:11.270Z",
       "updatedAt": "2025-11-22T06:59:48.199Z",
       "propertyInfo": {
@@ -48,9 +48,9 @@
     {
       "id": "6cdde3dd-09a5-4100-8e89-8e2aa5423b89",
       "projectId": "5796",
-      "agentName": "Riya from Homesfy",
+      "agentName": "Ziya from Homesfy",
       "avatarUrl": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNzlzZ2R4b3J2OHJ2MjFpd3RiZW5sbmxwOHVzb3RrdmNmZTh5Z25mYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/g9582DNuQppxC/giphy.gif",
-      "primaryColor": "#1b6b4b",
+      "primaryColor": "#6158ff",
       "followupMessage": "Sure… I’ll send that across right away!",
       "bhkPrompt": "Which configuration you are looking for?",
       "inventoryMessage": "That’s cool… we have inventory available with us.",
@@ -58,9 +58,9 @@
       "thankYouMessage": "Thanks! Our expert will call you shortly 📞",
       "bubblePosition": "bottom-right",
       "autoOpenDelayMs": 4000,
-      "welcomeMessage": "Hi, I’m Riya from Homesfy 👋\nHow can I help you today?",
+      "welcomeMessage": "Hello! 👋 Welcome to Homesfy\nHow can I assist you today?",
       "createdAt": "2025-11-21T06:56:08.718Z",
-      "updatedAt": "2025-11-26T13:29:57.839Z",
+      "updatedAt": "2025-11-26T13:40:33.409Z",
       "propertyInfo": {
         "projectName": "Homesfy Widget Local Test"
       }
@@ -68,9 +68,9 @@
     {
       "id": "0e6045ea-3ca2-4f94-99a9-5a71a6326879",
       "projectId": "test-project-id",
-      "agentName": "Riya from Homesfy",
+      "agentName": "Ziya from Homesfy",
       "avatarUrl": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNzlzZ2R4b3J2OHJ2MjFpd3RiZW5sbmxwOHVzb3RrdmNmZTh5Z25mYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/g9582DNuQppxC/giphy.gif",
-      "primaryColor": "#1b6b4b",
+      "primaryColor": "#049B5A",
       "followupMessage": "Sure… I’ll send that across right away!",
       "bhkPrompt": "Which configuration you are looking for?",
       "inventoryMessage": "That’s cool… we have inventory available with us.",
@@ -78,7 +78,7 @@
       "thankYouMessage": "Thanks! Our expert will call you shortly 📞",
       "bubblePosition": "bottom-right",
       "autoOpenDelayMs": 4000,
-      "welcomeMessage": "Hi, I’m Riya from Homesfy 👋\nHow can I help you today?",
+      "welcomeMessage": "Hi, I’m Ziya from Homesfy 👋\nHow can I help you today?",
       "createdAt": "2025-11-25T07:34:08.120Z",
       "updatedAt": "2025-11-25T07:34:08.120Z"
     }

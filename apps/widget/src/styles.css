@@ -50,6 +50,16 @@
   position: relative !important;
 }
 
+/* Hide bubble button on mobile devices */
+@media (max-width: 768px) {
+  .homesfy-widget__bubble-button {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+}
+
 .homesfy-widget__bubble-button:hover {
   transform: translateY(-2px);
 }
@@ -794,14 +804,12 @@
     width: 100vw;
   }
 
+  /* Hide bubble button completely on mobile */
   .homesfy-widget__bubble-button {
-    width: 64px;
-    height: 64px;
-    padding: 0px;
-    border-radius: 10px;
-    display: grid;
-    place-items: center;
-    gap: 0;
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
 
   .homesfy-widget__bubble-text,
