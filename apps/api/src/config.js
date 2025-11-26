@@ -9,19 +9,9 @@ const normalizedPort =
 
 const isVercel = Boolean(process.env.VERCEL);
 
-const resolvedDataStore = (() => {
-  const raw = process.env.DATA_STORE;
-  if (raw) {
-    // Trim whitespace and newlines, then convert to lowercase
-    const cleaned = raw.trim().toLowerCase();
-    if (cleaned) {
-      return cleaned;
-    }
-  }
-  // Always use file storage - config file is committed to git and deployed with API
-  // This is simpler and more secure than MongoDB for just widget config
-  return "file";
-})();
+// FORCE file storage - MongoDB is not used for widget config
+// This ensures we always use the config file from git, regardless of environment variables
+const resolvedDataStore = "file";
 
 // MongoDB is no longer used - we use file-based storage for widget config
 // The config file (apps/api/data/widget-config.json) is committed to git

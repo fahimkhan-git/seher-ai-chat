@@ -39,34 +39,10 @@ function expandAllowedOrigins(origins) {
 }
 
 async function bootstrap() {
-  // Connect to MongoDB if needed (with connection pooling for serverless)
-  if (config.dataStore === "mongo") {
-    try {
-      console.log("🔌 Attempting MongoDB connection...");
-      console.log("   MONGO_URI format:", config.mongoUri ? `${config.mongoUri.substring(0, 20)}...` : "NOT SET");
-      console.log("   DATA_STORE:", config.dataStore);
-      
-      await mongoose.connect(config.mongoUri, {
-        serverSelectionTimeoutMS: 30000, // Increased from 5000 to 30000
-        socketTimeoutMS: 45000,
-        connectTimeoutMS: 30000, // Add explicit connect timeout
-        maxPoolSize: 10,
-        retryWrites: true,
-      });
-      console.log("✅ MongoDB connected successfully");
-    } catch (error) {
-      console.error("❌ MongoDB connection error:", error.message);
-      console.error("   Error name:", error.name);
-      console.error("   Error code:", error.code);
-      console.error("   Full error:", JSON.stringify(error, null, 2));
-      // Don't throw in serverless - allow graceful degradation
-      if (!process.env.VERCEL) {
-        throw error;
-      }
-    }
-  } else {
-    console.log("Using local JSON datastore. Mongo connection skipped.");
-  }
+  // MongoDB is NOT used - we use file-based storage only
+  // This prevents any MongoDB connection attempts
+  console.log("📁 Using file-based storage (widget-config.json from git)");
+  console.log("   MongoDB connection skipped - not needed for widget config");
 
   const app = express();
   const expandedOrigins = config.allowedOrigins.includes("*")

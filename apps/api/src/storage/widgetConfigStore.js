@@ -139,6 +139,11 @@ function sanitizeUpdate(update = {}) {
 }
 
 export async function getWidgetConfig(projectId) {
+  // Log which storage we're using
+  if (process.env.VERCEL && !useMongo) {
+    console.log(`📁 getWidgetConfig(${projectId}): Using FILE storage (MongoDB disabled)`);
+  }
+  
   if (useMongo) {
     let configDoc = await WidgetConfig.findOne({ projectId }).lean();
 
@@ -161,11 +166,21 @@ export async function getWidgetConfig(projectId) {
   }
 
   const store = await loadStore();
+  
+  // Log store contents for debugging
+  if (process.env.VERCEL) {
+    console.log(`📁 Store loaded: ${store.configs?.length || 0} configs found`);
+    console.log(`📁 Looking for projectId: ${projectId}`);
+  }
+  
   const existing = store.configs.find((item) => item.projectId === projectId);
 
   if (existing) {
+    console.log(`✅ Found config for projectId: ${projectId}`);
     return existing;
   }
+  
+  console.log(`⚠️  Config not found for projectId: ${projectId}, creating default`);
 
   const now = new Date().toISOString();
   const config = {
