@@ -518,20 +518,6 @@
   margin-top: 8px;
 }
 
-.homesfy-widget__form-mode-indicator {
-  animation: fadeIn 0.3s ease-in;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
 .homesfy-widget__input-shell--name {
   /* Name input styling */
