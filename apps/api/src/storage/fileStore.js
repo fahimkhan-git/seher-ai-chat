@@ -3,8 +3,11 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { fileURLToPath } from "url";
 
+// Resolve data directory relative to this file's location
+// fileStore.js is at: apps/api/src/storage/fileStore.js
+// data directory is at: apps/api/data/
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
-const defaultDataDirectory = path.join(moduleDirectory, "../../data");
+const defaultDataDirectory = path.resolve(moduleDirectory, "../../data");
 
 function resolveDataDirectory(input) {
   if (!input) {
@@ -34,6 +37,11 @@ export async function readJson(fileName, defaultValue) {
       return JSON.parse(raw);
     } catch (error) {
       if (error instanceof SyntaxError) {
+        console.error(`Failed to parse JSON file ${filePath}:`, error.message);
+        // On Vercel, can't write backup, just return default
+        if (process.env.VERCEL) {
+          return JSON.parse(JSON.stringify(defaultValue));
+        }
         await backupCorruptedFile(filePath, raw);
         await writeJson(fileName, defaultValue);
         return JSON.parse(JSON.stringify(defaultValue));
@@ -41,6 +49,17 @@ export async function readJson(fileName, defaultValue) {
       throw error;
     }
   } catch (error) {
+    // Log the error for debugging
+    console.error(`Failed to read file ${filePath}:`, error.message);
+    console.error(`Data directory: ${dataDirectory}`);
+    console.error(`File path: ${filePath}`);
+    
+    // On Vercel, if file doesn't exist, return default (can't create it)
+    if (process.env.VERCEL && error.code === "ENOENT") {
+      console.warn(`File ${fileName} not found on Vercel, returning default. Make sure the file is committed to git.`);
+      return JSON.parse(JSON.stringify(defaultValue));
+    }
+    
     if (error.code === "ENOENT") {
       await writeJson(fileName, defaultValue);
       return JSON.parse(JSON.stringify(defaultValue));
@@ -51,6 +70,14 @@ export async function readJson(fileName, defaultValue) {
 }
 
 export async function writeJson(fileName, value) {
+  // On Vercel, filesystem is read-only - can't write files
+  // Config file is deployed from git, so writes will fail gracefully
+  if (process.env.VERCEL) {
+    const error = new Error(`Cannot write to filesystem on Vercel. Update ${fileName} in git and redeploy.`);
+    error.code = 'EROFS';
+    throw error;
+  }
+
   await ensureDirectory();
   const filePath = path.join(dataDirectory, fileName);
   const serialized = JSON.stringify(value, null, 2);

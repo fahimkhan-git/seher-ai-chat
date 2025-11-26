@@ -28,33 +28,29 @@ router.post("/:projectId", requireApiKey, async (req, res) => {
     const { projectId } = req.params;
     const update = req.body;
 
-    const config = await upsertWidgetConfig(projectId, update);
+    // On Vercel (read-only filesystem), we can't write files
+    // Return instructions to update via git instead
+    if (process.env.VERCEL) {
+      return res.status(200).json({
+        message: "Config update received. On Vercel, config is read-only from git.",
+        instruction: "Update apps/api/data/widget-config.json locally, commit, and push to deploy.",
+        receivedUpdate: update,
+        projectId
+      });
+    }
 
+    // Local development: update file directly
+    const config = await upsertWidgetConfig(projectId, update);
     res.json(config);
   } catch (error) {
     console.error("Failed to update widget config", error);
-    console.error("Error details:", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-      dataStore: process.env.DATA_STORE,
-      hasMongoUri: !!process.env.MONGO_URI
-    });
     
-    // Return more detailed error for debugging
+    // Return error details
     const errorResponse = {
       message: "Widget config update failed",
       error: error.message,
-      details: process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'development' ? {
-        name: error.name,
-        dataStore: process.env.DATA_STORE,
-        hasMongoUri: !!process.env.MONGO_URI,
-        mongoUriLength: process.env.MONGO_URI ? process.env.MONGO_URI.length : 0
-      } : undefined
     };
     
-    // Return 200 instead of 500 - widget config update is non-critical
-    // Widget will still work with detected property info
     res.status(200).json(errorResponse);
   }
 });

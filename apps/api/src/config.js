@@ -18,21 +18,14 @@ const resolvedDataStore = (() => {
       return cleaned;
     }
   }
-  // Default to Mongo when running on Vercel so we don't attempt to write to the
-  // read-only filesystem that powers serverless functions.
-  return isVercel ? "mongo" : "file";
+  // Always use file storage - config file is committed to git and deployed with API
+  // This is simpler and more secure than MongoDB for just widget config
+  return "file";
 })();
 
-if (resolvedDataStore === "mongo" && !process.env.MONGO_URI) {
-  const message =
-    "MONGO_URI environment variable is required when DATA_STORE=mongo. " +
-    "Set it to a MongoDB connection string (e.g. from MongoDB Atlas).";
-  if (isVercel) {
-    throw new Error(message);
-  } else {
-    console.warn(message + " Falling back to file store for local development.");
-  }
-}
+// MongoDB is no longer used - we use file-based storage for widget config
+// The config file (apps/api/data/widget-config.json) is committed to git
+// and deployed with the API. Updates require committing and pushing to git.
 
 export const config = {
   port: Number.isFinite(normalizedPort) ? normalizedPort : 4000,
