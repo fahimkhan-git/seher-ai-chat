@@ -50,7 +50,7 @@
       "projectId": "5796",
       "agentName": "Ziya from Homesfy",
       "avatarUrl": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNzlzZ2R4b3J2OHJ2MjFpd3RiZW5sbmxwOHVzb3RrdmNmZTh5Z25mYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/g9582DNuQppxC/giphy.gif",
-      "primaryColor": "#6158ff",
+      "primaryColor": "#049B5A",
       "followupMessage": "Sure… I’ll send that across right away!",
       "bhkPrompt": "Which configuration you are looking for?",
       "inventoryMessage": "That’s cool… we have inventory available with us.",
@@ -60,7 +60,7 @@
       "autoOpenDelayMs": 4000,
       "welcomeMessage": "Hello! 👋 Welcome to Homesfy\nHow can I assist you today?",
       "createdAt": "2025-11-21T06:56:08.718Z",
-      "updatedAt": "2025-11-26T13:40:33.409Z",
+      "updatedAt": "2025-11-26T16:00:39.648Z",
       "propertyInfo": {
         "projectName": "Homesfy Widget Local Test"
       }
