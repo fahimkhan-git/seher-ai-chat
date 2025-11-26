@@ -6,12 +6,12 @@ const runtimeBaseUrl =
 
 function ensureApiBase(raw) {
   if (!raw || typeof raw !== "string") {
-    return "https://api-alpha-ten-43.vercel.app/api";
+    return "https://api-825pnmuvj-fahimkhan-gits-projects.vercel.app/api";
   }
 
   const trimmed = raw.trim().replace(/\/+$/, "");
   if (!trimmed) {
-    return "https://api-alpha-ten-43.vercel.app/api";
+    return "https://api-825pnmuvj-fahimkhan-gits-projects.vercel.app/api";
   }
 
   if (/\/api$/i.test(trimmed)) {

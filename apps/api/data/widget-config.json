@@ -1,0 +1,86 @@
+{
+  "configs": [
+    {
+      "id": "b70b6522-70ee-40f0-b5a2-1ca3635b3e74",
+      "projectId": "default",
+      "agentName": "Riya from Homesfy",
+      "avatarUrl": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNzlzZ2R4b3J2OHJ2MjFpd3RiZW5sbmxwOHVzb3RrdmNmZTh5Z25mYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/g9582DNuQppxC/giphy.gif",
+      "primaryColor": "#6158ff",
+      "followupMessage": "Sure… I’ll send that across right away!",
+      "bhkPrompt": "Which configuration you are looking for?",
+      "inventoryMessage": "That’s cool… we have inventory available with us.",
+      "phonePrompt": "Please enter your mobile number...",
+      "thankYouMessage": "Thanks! Our expert will call you shortly 📞",
+      "bubblePosition": "bottom-right",
+      "autoOpenDelayMs": 4000,
+      "welcomeMessage": "Hi, I’m Riya from Homesfy 👋\nHow can I help you today?",
+      "createdAt": "2025-11-07T17:15:11.270Z",
+      "updatedAt": "2025-11-22T06:59:48.199Z",
+      "propertyInfo": {
+        "projectName": "Nivasa Enchante, Dhanori, Pune",
+        "developer": "Nivasa Group",
+        "location": "Nivasa Enchante - Dhanori",
+        "availableBhk": [
+          "2 BHK",
+          "3 BHK"
+        ],
+        "pricing": {
+          "2 BHK": "₹ 79.80 L",
+          "3 BHK": "₹ 79.80 L"
+        },
+        "area": "787-1046 Sq.ft",
+        "amenities": [
+          "Clubhouse",
+          "Gym",
+          "Garden",
+          "Club zone",
+          "Yoga",
+          "Meditation",
+          "Court",
+          "Jogging",
+          "Track",
+          "Landscaped"
+        ],
+        "possession": "Possession, No Bank Loan Required",
+        "specialOffers": "Pay 20% Now & Rest on Possession, No Bank Loan Required"
+      }
+    },
+    {
+      "id": "6cdde3dd-09a5-4100-8e89-8e2aa5423b89",
+      "projectId": "5796",
+      "agentName": "Riya from Homesfy",
+      "avatarUrl": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNzlzZ2R4b3J2OHJ2MjFpd3RiZW5sbmxwOHVzb3RrdmNmZTh5Z25mYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/g9582DNuQppxC/giphy.gif",
+      "primaryColor": "#1b6b4b",
+      "followupMessage": "Sure… I’ll send that across right away!",
+      "bhkPrompt": "Which configuration you are looking for?",
+      "inventoryMessage": "That’s cool… we have inventory available with us.",
+      "phonePrompt": "Please enter your mobile number...",
+      "thankYouMessage": "Thanks! Our expert will call you shortly 📞",
+      "bubblePosition": "bottom-right",
+      "autoOpenDelayMs": 4000,
+      "welcomeMessage": "Hi, I’m Riya from Homesfy 👋\nHow can I help you today?",
+      "createdAt": "2025-11-21T06:56:08.718Z",
+      "updatedAt": "2025-11-26T11:46:04.193Z",
+      "propertyInfo": {
+        "projectName": "Homesfy Widget Local Test"
+      }
+    },
+    {
+      "id": "0e6045ea-3ca2-4f94-99a9-5a71a6326879",
+      "projectId": "test-project-id",
+      "agentName": "Riya from Homesfy",
+      "avatarUrl": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNzlzZ2R4b3J2OHJ2MjFpd3RiZW5sbmxwOHVzb3RrdmNmZTh5Z25mYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/g9582DNuQppxC/giphy.gif",
+      "primaryColor": "#6158ff",
+      "followupMessage": "Sure… I’ll send that across right away!",
+      "bhkPrompt": "Which configuration you are looking for?",
+      "inventoryMessage": "That’s cool… we have inventory available with us.",
+      "phonePrompt": "Please enter your mobile number...",
+      "thankYouMessage": "Thanks! Our expert will call you shortly 📞",
+      "bubblePosition": "bottom-right",
+      "autoOpenDelayMs": 4000,
+      "welcomeMessage": "Hi, I’m Riya from Homesfy 👋\nHow can I help you today?",
+      "createdAt": "2025-11-25T07:34:08.120Z",
+      "updatedAt": "2025-11-25T07:34:08.120Z"
+    }
+  ]
+}

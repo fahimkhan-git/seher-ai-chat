@@ -1,19 +1,27 @@
 # Dependencies
 node_modules/
-.pnp
-.pnp.js
+**/node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.*.local
+apps/api/.env
+apps/api/.env.production
 
 # Build outputs
 dist/
 build/
 *.log
 
-# Environment variables
-.env
-.env.local
-.env.*.local
-.env.tmp
-apps/api/.env.tmp
+# Data files - ignore runtime data, keep widget-config.json for production
+apps/api/data/chat-sessions.json
+apps/api/data/events.json
+apps/api/data/leads.json
+apps/api/data/*.tmp
+apps/api/data/*.backup
+# Note: widget-config.json is kept (needed for file storage in production)
 
 # IDE
 .vscode/
@@ -29,17 +37,7 @@ Thumbs.db
 # Vercel
 .vercel
 
-# Data files (don't commit data)
-apps/api/data/*.json
-!apps/api/data/*.example.json
-apps/api/data/*.tmp
-apps/api/data/*.backup
-
-# Test files
-test-*.html
-test-*.sh
-local-microsite/*.bak
-
 # Temporary files
 *.tmp
+*.bak
 *.backup

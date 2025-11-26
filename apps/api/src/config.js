@@ -10,9 +10,13 @@ const normalizedPort =
 const isVercel = Boolean(process.env.VERCEL);
 
 const resolvedDataStore = (() => {
-  const raw = process.env.DATA_STORE && process.env.DATA_STORE.trim();
+  const raw = process.env.DATA_STORE;
   if (raw) {
-    return raw.toLowerCase();
+    // Trim whitespace and newlines, then convert to lowercase
+    const cleaned = raw.trim().toLowerCase();
+    if (cleaned) {
+      return cleaned;
+    }
   }
   // Default to Mongo when running on Vercel so we don't attempt to write to the
   // read-only filesystem that powers serverless functions.
@@ -40,6 +44,7 @@ export const config = {
     .map((origin) => origin.trim())
     .filter(Boolean),
   dataStore: resolvedDataStore,
+  widgetConfigApiKey: (process.env.WIDGET_CONFIG_API_KEY && process.env.WIDGET_CONFIG_API_KEY.trim()) || null,
 };
 
 

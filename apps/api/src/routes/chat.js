@@ -505,11 +505,17 @@ Now respond. If asking for contact details, use JSON. Otherwise, use plain text:
       temperature: 0.7, // Balanced creativity for persuasive but natural language
     };
     
-    const result = await model.generateContent(fullPrompt, { generationConfig });
-    const response = result.response;
-    const aiText = response.text().trim();
-    
-    console.log("✅ Chat API: Received AI response from Gemini (length:", aiText.length, "chars)");
+    let aiText = "";
+    try {
+      const result = await model.generateContent(fullPrompt, { generationConfig });
+      const response = result.response;
+      aiText = response.text().trim();
+      console.log("✅ Chat API: Received AI response from Gemini (length:", aiText.length, "chars)");
+    } catch (aiError) {
+      console.error("❌ Chat API: Gemini AI generation error:", aiError.message);
+      // Fall back to keyword matching if AI generation fails
+      throw new Error(`AI generation failed: ${aiError.message}`);
+    }
 
     // Try to parse JSON response for structured actions
     let parsedResponse = null;
@@ -526,17 +532,30 @@ Now respond. If asking for contact details, use JSON. Otherwise, use plain text:
       } 
       // Case 2: JSON embedded in text (extract first valid JSON object)
       else {
-        const jsonMatch = aiText.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/);
+        // More robust JSON extraction - handle nested objects and arrays
+        const jsonMatch = aiText.match(/\{(?:[^{}]|(?:\{[^{}]*\}))*\}/);
         if (jsonMatch) {
-          parsedResponse = JSON.parse(jsonMatch[0]);
+          try {
+            parsedResponse = JSON.parse(jsonMatch[0]);
+          } catch (e) {
+            // Try alternative pattern for more complex JSON
+            const altMatch = aiText.match(/\{[\s\S]*?\}/);
+            if (altMatch) {
+              try {
+                parsedResponse = JSON.parse(altMatch[0]);
+              } catch (e2) {
+                console.log("Chat API: Could not parse JSON from response");
+              }
+            }
+          }
         }
       }
       
       // Validate parsed response has the expected structure
-      if (parsedResponse && typeof parsedResponse === 'object') {
+      if (parsedResponse && typeof parsedResponse === 'object' && parsedResponse !== null) {
         if (parsedResponse.type === "request_lead_details") {
           actionType = "request_lead_details";
-          responseText = parsedResponse.message || aiText;
+          responseText = parsedResponse.message || parsedResponse.text || aiText;
           console.log("✅ Chat API: Detected request_lead_details action from AI");
           console.log("   Message:", responseText.substring(0, 100));
         }
@@ -544,6 +563,8 @@ Now respond. If asking for contact details, use JSON. Otherwise, use plain text:
     } catch (parseError) {
       // Not JSON or invalid JSON, treat as plain text
       console.log("Chat API: Response is plain text, not JSON:", parseError.message);
+      // Ensure responseText is set even if parsing fails
+      responseText = aiText;
     }
 
     // Return response with action type if detected
@@ -619,11 +640,18 @@ Now respond. If asking for contact details, use JSON. Otherwise, use plain text:
     }
     
     // Generic fallback response on error
-    res.json({ 
+    const errorMessage = error.message || "Unknown error";
+    console.error("Chat API: Full error details:", {
+      message: errorMessage,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    res.status(500).json({ 
       response: "I'd love to help you with that! Share your name and phone so I can assist you better.",
       aiUsed: false,
       fallback: true,
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
     });
   }
 });

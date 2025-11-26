@@ -362,13 +362,8 @@ export function ChatWidget({
   const autoOpenTimeoutRef = useRef(null);
   const [manualInput, setManualInput] = useState("");
   const [selectedCountry, setSelectedCountry] = useState(DEFAULT_COUNTRY);
-  // Track AI-triggered input mode (chat, name, phone, leadForm)
-  const [aiInputMode, setAiInputMode] = useState("chat"); // "chat" | "name" | "phone" | "leadForm"
-  const [hasAiConversationStarted, setHasAiConversationStarted] = useState(false);
-  // Separate state for combined lead form (name + phone together)
-  const [leadFormName, setLeadFormName] = useState("");
-  const [leadFormPhone, setLeadFormPhone] = useState("");
-  const [isLeadFormActive, setIsLeadFormActive] = useState(false);
+  // Simple flow state: CTA → BHK → Name → Phone
+  const [currentStage, setCurrentStage] = useState("cta"); // "cta" | "bhk" | "name" | "phone" | "complete"
 
   const resolvedTheme = useMemo(
     () => ({
@@ -464,6 +459,8 @@ export function ChatWidget({
         microsite,
         payload,
       }),
+      credentials: 'omit', // CRITICAL: Must be 'omit' when using wildcard CORS
+      keepalive: true, // Use keepalive for better reliability
     }).catch((error) => {
       console.error("Failed to record widget event", error);
     });
@@ -493,79 +490,6 @@ export function ChatWidget({
     ]);
   }
 
-  // AI-powered conversation function
-  async function getAIResponse(userMessage) {
-    if (!apiBaseUrl) {
-      console.warn("HomesfyChat: No API base URL, AI disabled");
-      return null;
-    }
-    
-    setIsTyping(true);
-    try {
-      const conversationHistory = messages
-        .slice(-10) // Last 10 messages for context
-        .map(msg => ({
-          type: msg.type,
-          text: msg.text,
-          timestamp: msg.timestamp
-        }));
-      
-      const payload = {
-        message: userMessage,
-        conversation: conversationHistory,
-        projectId,
-        microsite,
-        selectedCta,
-        selectedBhk,
-        propertyInfo: propertyInfo, // Send detected property info to AI
-      };
-      
-      console.log("HomesfyChat: Calling AI endpoint", `${apiBaseUrl}/api/chat`, payload);
-      
-      const response = await fetch(`${apiBaseUrl}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("HomesfyChat: AI request failed", response.status, errorText);
-        throw new Error(`AI request failed: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      if (data.aiUsed) {
-        console.log("✅ HomesfyChat: Received AI response from Gemini (gemini-2.5-flash) - full AI capabilities");
-      } else if (data.fallback) {
-        console.warn("⚠️  HomesfyChat: Received fallback response (keyword matching) - GEMINI_API_KEY not set");
-      }
-      
-      // Check if AI sent a structured action (like request_lead_details)
-      if (data.action === "request_lead_details") {
-        console.log("🎯 HomesfyChat: AI triggered request_lead_details - switching to form mode");
-        // Return object with both message and action
-        return {
-          text: data.response,
-          action: "request_lead_details"
-        };
-      }
-      
-      console.log("HomesfyChat: Response data:", { 
-        hasResponse: !!data.response, 
-        aiUsed: data.aiUsed, 
-        fallback: data.fallback,
-        model: data.model,
-        action: data.action
-      });
-      return data.response;
-    } catch (error) {
-      console.error("HomesfyChat: AI error", error);
-      return null;
-    } finally {
-      setIsTyping(false);
-    }
-  }
 
   const openChatOnce = () => {
     if (autoOpenTimeoutRef.current) {
@@ -598,14 +522,13 @@ export function ChatWidget({
 
     const delay = Math.max(0, resolvedTheme.autoOpenDelayMs || 0);
 
-    if (delay === 0) {
-      openChatOnce();
-      return undefined;
+    // Don't auto-open if delay is 0 or not set - let user click the bubble
+    // Only auto-open if explicitly set to a positive delay
+    if (delay > 0) {
+      autoOpenTimeoutRef.current = window.setTimeout(() => {
+        openChatOnce();
+      }, delay);
     }
-
-    autoOpenTimeoutRef.current = window.setTimeout(() => {
-      openChatOnce();
-    }, delay);
 
     return () => {
       if (autoOpenTimeoutRef.current) {
@@ -703,6 +626,7 @@ export function ChatWidget({
     setSelectedCta(cta);
     pushUserMessage(cta);
     trackEvent("cta_selected", { label: cta });
+    setCurrentStage("bhk");
     setIsTyping(true);
 
     setTimeout(() => {
@@ -720,6 +644,7 @@ export function ChatWidget({
     setManualInput("");
     pushUserMessage(bhk);
     trackEvent("chat_started", { bhkType: bhk });
+    setCurrentStage("name");
     setIsTyping(true);
 
     setTimeout(() => {
@@ -727,8 +652,6 @@ export function ChatWidget({
     }, 500);
 
     setTimeout(() => {
-      // Switch to name input mode - same as AI-triggered flow
-      setAiInputMode("name");
       console.log("HomesfyChat: BHK selected, switching to NAME input mode");
       pushSystemMessage(resolvedTheme.namePrompt || "Please enter your name");
       setIsTyping(false);
@@ -738,28 +661,7 @@ export function ChatWidget({
   const handleNameSubmit = async (name) => {
     const trimmedName = name.trim();
     
-    // 1. Check if it's clearly a question (Escape hatch)
-    if (isClearlyAQuestion(trimmedName)) {
-      console.log("HomesfyChat: Detected question in name field, switching to chat");
-      setAiInputMode("chat");
-      setManualInput("");
-      setError(null);
-      
-      pushUserMessage(trimmedName);
-      setHasAiConversationStarted(true);
-      
-      const aiResponse = await getAIResponse(trimmedName);
-      if (aiResponse) {
-        const responseText = typeof aiResponse === 'object' ? aiResponse.text : aiResponse;
-        detectAndSwitchInputMode(aiResponse);
-        setTimeout(() => {
-          pushSystemMessage(responseText || aiResponse);
-        }, 300);
-      }
-      return false;
-    }
-    
-    // 2. Strict Name Validation
+    // Strict Name Validation
     if (!trimmedName || trimmedName.length < 2) {
       setError("Please enter a valid name (at least 2 characters).");
       return false;
@@ -777,52 +679,31 @@ export function ChatWidget({
       return false;
     }
     
-    // 3. SUCCESS: Handle State Locally (Do NOT call AI)
+    // SUCCESS: Handle State Locally
     setUserName(trimmedName);
-    pushUserMessage(trimmedName); // Show name in chat bubble
-    
-    // CRITICAL: Force the state transition immediately - LOCAL UPDATE ONLY
+    pushUserMessage(trimmedName);
     setNameSubmitted(true);
-    setAiInputMode("phone");
+    setCurrentStage("phone");
     
     // Clear input/error
     setManualInput("");
     setError(null);
-    setIsTyping(true); // Fake typing for realism
+    setIsTyping(true);
 
-    console.log("HomesfyChat: ✅ Name submitted - LOCAL state update only (no AI call)");
-    console.log("HomesfyChat: Setting nameSubmitted=true, aiInputMode=phone");
+    console.log("HomesfyChat: ✅ Name submitted, switching to phone stage");
 
-    // 4. Simulate Agent asking for Phone (Local System Message)
+    // Simulate Agent asking for Phone
     setTimeout(() => {
       setIsTyping(false);
-      // This ensures the Country Code dropdown appears because aiInputMode is 'phone'
       pushSystemMessage(`Thanks ${trimmedName}! Now please enter your mobile number to receive the details.`);
-      console.log("HomesfyChat: Phone input mode activated, country selector should be visible");
     }, 600);
     
     return true;
   };
 
-  // Unified flow: Both CTA/BHK and AI-triggered flows use aiInputMode for consistent behavior
-  // When BHK is selected, aiInputMode is set to "name"
-  // When AI asks for name/phone, aiInputMode is set to "name" or "phone"
-  const isAiNameMode = aiInputMode === "name" && !nameSubmitted;
-  // CRITICAL: Phone input is active when name is submitted AND aiInputMode is "phone"
-  const isAiPhoneMode = aiInputMode === "phone" && nameSubmitted && !phoneSubmitted;
-  
-  // Fallback for structured flow (CTA → BHK) if aiInputMode not set yet
-  const isNameStage = Boolean(selectedCta && selectedBhk && !nameSubmitted && aiInputMode === "chat");
-  const isPhoneStage = Boolean(selectedCta && selectedBhk && nameSubmitted && !phoneSubmitted && aiInputMode === "chat");
-  
-  // Combined: aiInputMode takes priority, fallback to structured flow
-  // IMPORTANT: Phone input is active when name is submitted AND aiInputMode is phone
-  const isNameInputActive = isAiNameMode || isNameStage;
-  
-  // Phone input is active when:
-  // 1. AI phone mode is active (aiInputMode === "phone" && nameSubmitted && !phoneSubmitted)
-  // 2. OR structured flow phone stage (CTA/BHK selected, name submitted, aiInputMode is chat)
-  const isPhoneInputActive = isAiPhoneMode || isPhoneStage;
+  // Simple flow: CTA → BHK → Name → Phone
+  const isNameInputActive = currentStage === "name" && !nameSubmitted;
+  const isPhoneInputActive = currentStage === "phone" && nameSubmitted && !phoneSubmitted;
   
   // Define replyPlaceholder BEFORE useEffect to avoid initialization error
   // Make it clear what's expected, especially for phone with country code
@@ -837,17 +718,11 @@ export function ChatWidget({
       ? "Tell us your preferred configuration"
       : "Write a reply..";
   
-  // Debug logging - log input mode changes
+  // Debug logging
   useEffect(() => {
-    const calculatedIsAiPhoneMode = aiInputMode === "phone" && nameSubmitted && !phoneSubmitted;
-    const calculatedIsPhoneStage = Boolean(selectedCta && selectedBhk && nameSubmitted && !phoneSubmitted && aiInputMode === "chat");
-    const calculatedIsPhoneInputActive = calculatedIsAiPhoneMode || calculatedIsPhoneStage;
-    
-    console.log("HomesfyChat: Input mode state - aiInputMode:", aiInputMode, "nameSubmitted:", nameSubmitted, "phoneSubmitted:", phoneSubmitted);
-    console.log("HomesfyChat: isNameInputActive:", isNameInputActive, "isPhoneInputActive:", isPhoneInputActive, "isAiPhoneMode:", isAiPhoneMode, "isPhoneStage:", isPhoneStage);
-    console.log("HomesfyChat: Phone conditions - isAiPhoneMode:", calculatedIsAiPhoneMode, "isPhoneStage:", calculatedIsPhoneStage, "shouldShowPhone:", calculatedIsPhoneInputActive);
-    console.log("HomesfyChat: Placeholder:", replyPlaceholder);
-  }, [aiInputMode, isNameInputActive, isPhoneInputActive, nameSubmitted, phoneSubmitted, replyPlaceholder, selectedCta, selectedBhk]);
+    console.log("HomesfyChat: Current stage:", currentStage, "nameSubmitted:", nameSubmitted, "phoneSubmitted:", phoneSubmitted);
+    console.log("HomesfyChat: isNameInputActive:", isNameInputActive, "isPhoneInputActive:", isPhoneInputActive);
+  }, [currentStage, isNameInputActive, isPhoneInputActive, nameSubmitted, phoneSubmitted]);
 
   const selectedCountryKey = countryOptionKey(
     selectedCountry || DEFAULT_COUNTRY
@@ -879,184 +754,6 @@ export function ChatWidget({
     }
   };
   
-  // Function to detect if AI is asking for name/phone and switch input mode
-  // Enhanced detection with more patterns and better logic
-  // Now handles both JSON actions and plain text detection
-  const detectAndSwitchInputMode = (aiResponse) => {
-    if (!aiResponse) {
-      console.log("HomesfyChat: detectAndSwitchInputMode - no response");
-      return;
-    }
-    
-    // Handle structured response with action
-    let responseText = aiResponse;
-    let actionType = null;
-    
-    if (typeof aiResponse === 'object' && aiResponse !== null) {
-      // AI returned structured response with action
-      responseText = aiResponse.text || aiResponse.message || String(aiResponse);
-      actionType = aiResponse.action;
-      console.log("HomesfyChat: Received structured AI response with action:", actionType);
-    } else {
-      responseText = String(aiResponse);
-    }
-    
-    // If AI explicitly requested lead details via JSON action, switch to COMBINED form mode
-    // PRIORITIZE ACTION - Stop here, don't do regex matching
-    if (actionType === "request_lead_details") {
-      console.log("🎯 HomesfyChat: AI triggered request_lead_details - showing combined form");
-      
-      // NEW: Show combined form with BOTH name and phone fields together
-      setAiInputMode("leadForm");
-      setIsLeadFormActive(true);
-      setLeadFormName("");
-      setLeadFormPhone("");
-      setManualInput("");
-      setError(null);
-      console.log("HomesfyChat: ✅ Switching to COMBINED LEAD FORM (name + phone together)");
-      
-      return; // STOP HERE. Do not do regex matching if action exists.
-    }
-    
-    console.log("HomesfyChat: detectAndSwitchInputMode called with:", responseText.substring(0, 100));
-    console.log("HomesfyChat: Current state - nameSubmitted:", nameSubmitted, "phoneSubmitted:", phoneSubmitted, "aiInputMode:", aiInputMode);
-    
-    const lowerResponse = responseText.toLowerCase();
-    
-    // Enhanced detection patterns - comprehensive coverage for AI's various ways of asking
-    // These patterns match the AI's sales-focused language from the system prompt
-    const namePatterns = [
-      /share your name/i,
-      /share your name and phone/i,  // When both are mentioned, prioritize name first
-      /could you share your name/i,
-      /please share your name/i,
-      /enter your name/i,
-      /what is your name/i,
-      /what's your name/i,
-      /tell me your name/i,
-      /(?:could|can) you (?:please )?share your name/i,
-      /(?:could|can) you (?:please )?tell me your name/i,
-      /(?:may|can) i (?:please )?have your name/i,
-      /your name/i,  // Catch-all for "your name" mentions
-      /i need your name/i,
-      /to get you|send you|connect you.*(?:share|provide|give).*name/i
-    ];
-    
-    const phonePatterns = [
-      /share your (?:name and )?(?:phone|mobile|number)/i,  // "share your name and phone" or "share your phone"
-      /share your phone/i,
-      /share your mobile/i,
-      /share your number/i,
-      /could you share your (?:name and )?(?:phone|mobile|number)/i,
-      /please share your (?:phone|mobile|number)/i,
-      /enter your (?:phone|mobile|number)/i,
-      /what is your (?:phone|mobile|number)/i,
-      /what's your (?:phone|mobile|number)/i,
-      /tell me your (?:phone|mobile|number)/i,
-      /contact (?:number|details)/i,
-      /mobile number/i,
-      /phone number/i,
-      /(?:could|can) you (?:please )?share your (?:phone|mobile|number)/i,
-      /(?:may|can) i (?:please )?have your (?:phone|mobile|number)/i,
-      /(?:could|can) you (?:please )?provide your (?:phone|mobile|number)/i,
-      /to (?:get|send|call|connect).*phone|mobile|number/i,
-      /(?:call|reach|contact).*phone|mobile|number/i
-    ];
-    
-    // Check if both name and phone are mentioned
-    const mentionsName = namePatterns.some(pattern => pattern.test(lowerResponse));
-    const mentionsPhone = phonePatterns.some(pattern => pattern.test(lowerResponse));
-    const asksForBoth = mentionsName && mentionsPhone;
-    
-    console.log("HomesfyChat: Detection - mentionsName:", mentionsName, "mentionsPhone:", mentionsPhone, "asksForBoth:", asksForBoth);
-    
-    // Priority: if both mentioned, check what's already submitted
-    let shouldSwitch = false;
-    let newMode = aiInputMode;
-    
-    // Priority logic: Always collect name first, then phone
-    // This ensures we have the name before asking for phone
-    if (asksForBoth) {
-      // AI asked for both name and phone
-      if (!nameSubmitted) {
-        // Name not submitted yet - switch to name input first
-        newMode = "name";
-        shouldSwitch = true;
-        console.log("HomesfyChat: ✅ Switching to NAME input mode (AI asked for name and phone, collecting name first)");
-      } else if (nameSubmitted && !phoneSubmitted) {
-        // Name submitted, now switch to phone input
-        newMode = "phone";
-        shouldSwitch = true;
-        console.log("HomesfyChat: ✅ Switching to PHONE input mode (name submitted, now collecting phone)");
-      }
-    } else if (mentionsName && !nameSubmitted) {
-      // Only name mentioned and not submitted
-      newMode = "name";
-      shouldSwitch = true;
-      console.log("HomesfyChat: ✅ Switching to NAME input mode (AI asked for name)");
-    } else if (mentionsPhone && !phoneSubmitted) {
-      // Only phone mentioned
-      if (!nameSubmitted) {
-        // Phone asked but name not submitted - always ask for name first
-        newMode = "name";
-        shouldSwitch = true;
-        console.log("HomesfyChat: ✅ Switching to NAME input mode first (phone asked but name not provided - collecting name first)");
-      } else {
-        // Name already submitted, now ask for phone
-        newMode = "phone";
-        shouldSwitch = true;
-        console.log("HomesfyChat: ✅ Switching to PHONE input mode (name submitted, AI asked for phone)");
-      }
-    } else {
-      console.log("HomesfyChat: No input mode switch needed - mentionsName:", mentionsName, "mentionsPhone:", mentionsPhone, "nameSubmitted:", nameSubmitted, "phoneSubmitted:", phoneSubmitted);
-    }
-    
-    // Only update if we need to switch
-    if (shouldSwitch && newMode !== aiInputMode) {
-      console.log("HomesfyChat: ✅ Setting aiInputMode from", aiInputMode, "to", newMode);
-      setAiInputMode(newMode);
-      // Force a re-render by clearing and setting input
-      setManualInput("");
-      // Clear any errors when switching modes
-      setError(null);
-    } else if (!shouldSwitch) {
-      console.log("HomesfyChat: No switch needed - shouldSwitch:", shouldSwitch, "newMode:", newMode, "current aiInputMode:", aiInputMode);
-    }
-  };
-  
-  // Removed toggleToChatMode - seamless flow like CTA_OPTIONS, no back button
-
-  // VERY STRICT detection - only switch to chat if it's clearly a question
-  // We prioritize accuracy - better to ask for name/number again than lose a lead
-  const isClearlyAQuestion = (text) => {
-    if (!text || text.length < 3) return false;
-    
-    const trimmed = text.trim();
-    const lower = trimmed.toLowerCase();
-    
-    // ONLY switch if it's VERY clearly a question:
-    // 1. Ends with question mark
-    // 2. OR starts with obvious question words (what, when, where, why, how, tell me, can you, etc.)
-    const questionStarters = [
-      'what', 'when', 'where', 'why', 'how', 'who', 'which',
-      'tell me', 'can you', 'could you', 'would you', 'show me',
-      'explain', 'i want to know', 'i need to know'
-    ];
-    
-    const startsWithQuestion = questionStarters.some(starter => 
-      lower.startsWith(starter) && lower.length > starter.length + 2
-    );
-    
-    const endsWithQuestionMark = trimmed.endsWith('?');
-    
-    // ONLY return true if BOTH conditions suggest it's a question
-    // AND it's longer than a typical name (more than 2 words)
-    const wordCount = trimmed.split(/\s+/).filter(w => w.length > 0).length;
-    const isLongEnough = wordCount > 2;
-    
-    // Very conservative: must end with ? OR (start with question word AND be long enough)
-    return (endsWithQuestionMark || (startsWithQuestion && isLongEnough)) && isLongEnough;
-  };
 
   async function submitLeadInput(rawInput, providedName = null) {
     setError(null);
@@ -1326,6 +1023,7 @@ export function ChatWidget({
           "Content-Type": "application/json",
         },
           body: JSON.stringify(localPayload),
+          credentials: 'omit', // CRITICAL: Must be 'omit' when using wildcard CORS
         }).catch(() => {
           // Silently fail if local API is not available
       });
@@ -1337,10 +1035,9 @@ export function ChatWidget({
       setPhoneSubmitted(true);
       pushSystemMessage(resolvedTheme.thankYouMessage);
       
-      // Switch back to chat mode after successful submission
-      // User can now continue chatting if they want
-      setAiInputMode("chat");
-      console.log("HomesfyChat: ✅ Lead submitted successfully to CRM, switching back to chat mode");
+      // Mark as complete
+      setCurrentStage("complete");
+      console.log("HomesfyChat: ✅ Lead submitted successfully to CRM");
       
       trackEvent("lead_submitted", {
         name: userName,
@@ -1381,191 +1078,67 @@ export function ChatWidget({
       return;
     }
 
-    // Combined Lead Form - Check FIRST before other logic
-    if (isLeadFormActive || aiInputMode === "leadForm") {
-      // Validate both name and phone, then submit together
-      const nameValue = leadFormName.trim();
-      const phoneValue = leadFormPhone.trim();
-      
-      // Clear previous errors
-      setError(null);
-      
-      // Validate name
-      if (!nameValue || nameValue.length < 2) {
-        setError("Please enter a valid name (at least 2 characters).");
-        return;
-      }
-      
-      const namePattern = /^[a-zA-Z\s'-]{2,50}$/;
-      if (!namePattern.test(nameValue)) {
-        setError("Please enter a valid name (letters only).");
-        return;
-      }
-      
-      // Validate phone
-      if (!phoneValue) {
-        setError("Please enter your phone number.");
-        return;
-      }
-      
-      // Use selectedCountry for phone submission
-      const countryCode = selectedCountry?.code || "+91";
-      const normalizedPhone = phoneValue.replace(/\D/g, "");
-      
-      // Validate phone length
-      if (normalizedPhone.length < 4) {
-        setError("Please enter a valid phone number.");
-        return;
-      }
-      
-      if (countryCode === "+91" && (normalizedPhone.length !== 10 || !/^[6-9]/.test(normalizedPhone))) {
-        setError("Invalid phone number. For Indian numbers, enter a valid 10-digit number starting with 6-9.");
-        return;
-      }
-      
-      // Set user name FIRST (before submission)
-      setUserName(nameValue);
-      setNameSubmitted(true);
-      setIsTyping(true);
-      setError(null);
-      
-      console.log("HomesfyChat: Submitting combined lead form - Name:", nameValue, "Phone:", `${countryCode}${normalizedPhone}`);
-      
-      // Submit lead with both name and phone
-      // Use a small delay to ensure userName state is set
-      try {
-        // Create phone string with country code
-        const fullPhoneNumber = `${countryCode}${normalizedPhone}`;
-        
-        // Call submitLeadInput with name explicitly passed
-        const success = await submitLeadInput(fullPhoneNumber, nameValue);
-        
-        if (success) {
-          // Success - clear form and reset state
-          setLeadFormName("");
-          setLeadFormPhone("");
-          setManualInput("");
-          setIsLeadFormActive(false);
-          setAiInputMode("chat");
-          setPhoneSubmitted(true);
-          setError(null);
-          setIsTyping(false);
-          
-          // Show success message
-          pushUserMessage(nameValue);
-          pushUserMessage(fullPhoneNumber);
-          pushSystemMessage(resolvedTheme.thankYouMessage || "Thank you! We'll reach out to you soon.");
-          
-          console.log("HomesfyChat: ✅ Combined lead form submitted successfully to CRM");
-        } else {
-          setError("Failed to submit. Please try again.");
-          setIsTyping(false);
-        }
-      } catch (err) {
-        console.error("HomesfyChat: Error submitting combined form:", err);
-        setError(err.message || "We couldn't save your details. Please try again.");
-        setIsTyping(false);
-      }
-      return;
-    }
-
     const rawValue = manualInput;
     const trimmed = rawValue.trim();
 
-    // Flow: CTA → BHK → Name → Phone
+    // Simple flow: CTA → BHK → Name → Phone
     
     // Stage 1: CTA selection
-    // Check if user is selecting a CTA option or asking a question
     if (!selectedCta) {
       if (!trimmed) {
         return;
       }
       
-      // More strict matching - check if input is a clear CTA selection
-      // Remove emojis and extra whitespace for comparison
+      // Check if input matches a CTA option
       const normalizedInput = trimmed.toLowerCase().replace(/[^\w\s]/g, '').trim();
       const isCtaSelection = ctaOptions.some(cta => {
         const normalizedCta = cta.toLowerCase().replace(/[^\w\s]/g, '').trim();
-        const ctaWords = normalizedCta.split(/\s+/).filter(w => w.length > 2);
-        const inputWords = normalizedInput.split(/\s+/);
-        
-        // Only match if:
-        // 1. Exact match
-        // 2. Input contains the full CTA text
-        // 3. Input is very short (1-2 words) and matches key CTA words like "pricing", "brochure", "quote", "visit", "call"
-        const keyCtaWords = ['pricing', 'brochure', 'quote', 'visit', 'tour', 'whatsapp', 'call', 'callback'];
-        const isKeyWordMatch = inputWords.length <= 2 && 
-                              keyCtaWords.some(keyword => normalizedInput.includes(keyword)) &&
-                              ctaWords.some(word => normalizedInput.includes(word));
-        
-        return normalizedInput === normalizedCta || 
-               normalizedInput.includes(normalizedCta) ||
-               isKeyWordMatch;
+        return normalizedInput === normalizedCta || normalizedInput.includes(normalizedCta);
       });
       
-      // If it's clearly a CTA selection, handle it
       if (isCtaSelection) {
         setManualInput("");
         handleCtaSelect(trimmed);
         return;
       }
       
-      // Otherwise, treat as a question and get AI response
-      pushUserMessage(trimmed);
+      // If not a CTA, handle as a greeting/free-form message
+      // Treat it like a CTA selection - hide buttons and continue flow
+      const userMessage = trimmed;
+      pushUserMessage(userMessage);
       setManualInput("");
       
-      // Mark that AI conversation has started
-      setHasAiConversationStarted(true);
+      // Set a default CTA to hide the buttons (use first CTA as default)
+      setSelectedCta(ctaOptions[0]);
+      trackEvent("cta_selected", { label: "user_message", userMessage });
+      setCurrentStage("bhk");
+      setIsTyping(true);
+
+      // Show the combined response message (same format as when CTA is selected)
+      setTimeout(() => {
+        pushSystemMessage(resolvedTheme.ctaAcknowledgement);
+      }, 400);
+
+      // Then show BHK prompt
+      setTimeout(() => {
+        pushSystemMessage(resolvedTheme.bhkPrompt);
+        setIsTyping(false);
+      }, 1100);
       
-      const aiResponse = await getAIResponse(trimmed);
-      // Handle AI response - can be string or object with action
-      if (aiResponse) {
-        const responseText = typeof aiResponse === 'object' ? aiResponse.text : aiResponse;
-        const actionType = typeof aiResponse === 'object' ? aiResponse.action : null;
-        
-        // If AI explicitly requested lead details, switch to COMBINED form mode
-        if (actionType === "request_lead_details") {
-          console.log("🎯 HomesfyChat: AI requested lead details - showing combined form");
-          setAiInputMode("leadForm");
-          setIsLeadFormActive(true);
-          setLeadFormName("");
-          setLeadFormPhone("");
-          console.log("HomesfyChat: ✅ Switched to COMBINED LEAD FORM (name + phone together)");
-        } else {
-          // For regular responses, use pattern detection
-        detectAndSwitchInputMode(aiResponse);
-        }
-        
-        // Add slight delay for natural feel when showing message
-        setTimeout(() => {
-          pushSystemMessage(responseText || aiResponse);
-        }, 300);
-      } else {
-        // Fallback if AI is not available
-        const fallbackMsg = "I'd love to help you with that! Share your name and phone so I can assist you better.";
-        detectAndSwitchInputMode(fallbackMsg);
-        setTimeout(() => {
-          pushSystemMessage(fallbackMsg);
-        }, 300);
-      }
-      trackEvent("manual_message", { stage: "pre_cta_ai", hasAiResponse: !!aiResponse });
       return;
     }
 
     // Stage 2: BHK selection
-    // Check if user is selecting a BHK option or asking a question
     if (!selectedBhk) {
       if (!trimmed) {
         return;
       }
       
-      // More strict matching for BHK - check exact matches or clear BHK patterns
+      // Check if input matches a BHK option
       const normalizedInput = trimmed.toLowerCase().trim();
       const isBhkSelection = bhkOptions.some(bhk => {
         const normalizedBhk = bhk.toLowerCase().trim();
-        // Exact match or contains BHK number pattern (1, 2, 3, 4)
         return normalizedInput === normalizedBhk || 
-               normalizedInput === normalizedBhk.replace(/\s+/g, ' ') ||
                /^\s*[1-4]\s*bhk\s*$/i.test(normalizedInput) ||
                (normalizedInput.includes('bhk') && /[1-4]/.test(normalizedInput));
       });
@@ -1576,158 +1149,34 @@ export function ChatWidget({
         return;
       }
       
-      // Otherwise, treat as a question and get AI response
-      pushUserMessage(trimmed);
-      setManualInput("");
-      
-      // Mark that AI conversation has started
-      setHasAiConversationStarted(true);
-      
-      const aiResponse = await getAIResponse(trimmed);
-      // Handle AI response - can be string or object with action
-      if (aiResponse) {
-        const responseText = typeof aiResponse === 'object' ? aiResponse.text : aiResponse;
-        
-        // Detect and switch input mode IMMEDIATELY
-        detectAndSwitchInputMode(aiResponse);
-        
-        // Add slight delay for natural feel when showing message
-        setTimeout(() => {
-          pushSystemMessage(responseText || aiResponse);
-        }, 300);
-      } else {
-        // Fallback if AI is not available
-        const fallbackMsg = "I'd love to help you with that! Share your name and phone so I can assist you better.";
-        detectAndSwitchInputMode(fallbackMsg);
-        setTimeout(() => {
-          pushSystemMessage(fallbackMsg);
-        }, 300);
-      }
-      trackEvent("manual_message", { stage: "pre_bhk_ai", hasAiResponse: !!aiResponse });
+      // If not a BHK, ignore (user must click a button)
       return;
     }
 
-    // Stage 3: Name collection (structured flow or AI-triggered)
+    // Stage 3: Name collection
     if (isNameInputActive) {
-      // Check if it's clearly a question (very strict) - escape hatch
-      if (isClearlyAQuestion(trimmed)) {
-        console.log("HomesfyChat: User asked question in name field, switching to chat");
-        setAiInputMode("chat");
-        setManualInput("");
-        setError(null);
-        
-        pushUserMessage(trimmed);
-        setHasAiConversationStarted(true);
-        
-        const aiResponse = await getAIResponse(trimmed);
-        if (aiResponse) {
-          const responseText = typeof aiResponse === 'object' ? aiResponse.text : aiResponse;
-          detectAndSwitchInputMode(aiResponse);
-          setTimeout(() => {
-            pushSystemMessage(responseText || aiResponse);
-          }, 300);
-        }
-        return;
-      }
-      
-      // Attempt to submit name. The function now returns TRUE if successful.
-      // handleNameSubmit handles state locally (no AI call) and sets aiInputMode="phone"
       const success = await handleNameSubmit(trimmed);
-      // If success, handleNameSubmit already set aiInputMode="phone" and cleared input
       return;
     }
 
-    // Stage 4: Phone collection (structured flow or AI-triggered)
+    // Stage 4: Phone collection
     if (isPhoneInputActive) {
-      // Check if it's clearly a question (very strict) - escape hatch
-      if (isClearlyAQuestion(trimmed)) {
-        console.log("HomesfyChat: User asked question in phone field, switching to chat");
-        setAiInputMode("chat");
-        setManualInput("");
-        setError(null);
-        
-        pushUserMessage(trimmed);
-        setHasAiConversationStarted(true);
-        
-        const aiResponse = await getAIResponse(trimmed);
-        if (aiResponse) {
-          const responseText = typeof aiResponse === 'object' ? aiResponse.text : aiResponse;
-          detectAndSwitchInputMode(aiResponse);
-          setTimeout(() => {
-            pushSystemMessage(responseText || aiResponse);
-          }, 300);
-        }
-        return;
-      }
-      
-      // This triggers the API call to CRM
       const success = await submitLeadInput(rawValue);
       if (success) {
         setManualInput("");
-        setAiInputMode("chat"); // Reset to normal chat after success
-        console.log("HomesfyChat: Phone submitted successfully, switched back to chat mode");
       }
       return;
     }
-
-
-    // Post-lead messages or AI-powered conversation
-    // IMPORTANT: If we're in form mode (name/phone input), don't allow chat messages
-    // User must complete the form or click "continue chatting"
-    if (isNameInputActive || isPhoneInputActive) {
-      console.log("HomesfyChat: User tried to send chat message while in form mode, ignoring");
-      return;
-    }
-    
-    if (!trimmed) {
-      return;
-    }
-
-    // Push user message first
-    pushUserMessage(trimmed);
-    setManualInput("");
-    
-    // Mark that AI conversation has started as soon as user sends a message
-    // This ensures CTA buttons hide immediately
-    setHasAiConversationStarted(true);
-    
-    // Get AI response for natural conversation
-    const aiResponse = await getAIResponse(trimmed);
-    
-    if (aiResponse) {
-      const responseText = typeof aiResponse === 'object' ? aiResponse.text : aiResponse;
-      const actionType = typeof aiResponse === 'object' ? aiResponse.action : null;
-      
-        // If AI explicitly requested lead details, switch to COMBINED form mode
-        if (actionType === "request_lead_details") {
-          console.log("🎯 HomesfyChat: AI requested lead details - showing combined form");
-          setAiInputMode("leadForm");
-          setIsLeadFormActive(true);
-          setLeadFormName("");
-          setLeadFormPhone("");
-          console.log("HomesfyChat: ✅ Switched to COMBINED LEAD FORM (name + phone together)");
-        } else {
-        // For regular responses, use pattern detection
-      detectAndSwitchInputMode(aiResponse);
-      }
-      
-      // Add slight delay for natural feel when showing message
-      setTimeout(() => {
-        pushSystemMessage(responseText || aiResponse);
-      }, 300);
-    } else {
-      // Fallback response if AI is not available - use exact phrase that triggers input mode
-      const fallbackMsg = "I'd love to help you with that! Share your name and phone so I can assist you better.";
-      // Detect in fallback response immediately
-      detectAndSwitchInputMode(fallbackMsg);
-      
-      setTimeout(() => {
-        pushSystemMessage(fallbackMsg);
-      }, 300);
-    }
-    
-    trackEvent("manual_message", { stage: "ai_conversation", hasAiResponse: !!aiResponse });
   };
+
+  // Log when widget renders
+  useEffect(() => {
+    console.log("HomesfyChat: Widget component rendered", {
+      isOpen,
+      bubblePosition: resolvedTheme.bubblePosition,
+      hasAvatar: !!avatarUrl
+    });
+  }, [isOpen, resolvedTheme.bubblePosition, avatarUrl]);
 
   return (
     <div
@@ -1737,6 +1186,11 @@ export function ChatWidget({
       style={{
         "--homesfy-primary": resolvedTheme.primaryColor,
         "--homesfy-primary-rgb": primaryRgb,
+        position: "fixed",
+        zIndex: 2147483647,
+        display: "block",
+        visibility: "visible",
+        opacity: 1,
       }}
     >
       {isOpen && (
@@ -1842,7 +1296,7 @@ export function ChatWidget({
 
           <div className="homesfy-widget__input">
             {/* Stage 1: CTA selection */}
-            {!selectedCta && !hasAiConversationStarted && (
+            {!selectedCta && (
               <div className="homesfy-widget__cta-grid">
                 {ctaOptions.map((option) => (
                   <button
@@ -1887,177 +1341,8 @@ export function ChatWidget({
 
             {error && <p className="homesfy-widget__error">{error}</p>}
 
-            {/* --- FIX: Status messages moved OUTSIDE form --- */}
-            
-            {/* Combined Lead Form - Name + Phone Together */}
-            {isLeadFormActive && (
-              <>
-                {/* Status Message */}
-                <div 
-                  className="homesfy-widget__form-mode-indicator" 
-                  style={{ 
-                    fontSize: '12px', 
-                    color: resolvedTheme.primaryColor, 
-                    fontWeight: '600',
-                    marginBottom: '8px',
-                    padding: '8px 12px',
-                    background: `rgba(${primaryRgb}, 0.08)`,
-                    borderRadius: '6px',
-                    textAlign: 'center',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  <span>📝</span>
-                  <span>Please enter your details</span>
-                </div>
-                
-                {/* Small button to switch back to chat */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      console.log("HomesfyChat: User switched back to chat mode");
-                      setIsLeadFormActive(false);
-                      setAiInputMode("chat");
-                      setLeadFormName("");
-                      setLeadFormPhone("");
-                      setError(null);
-                    }}
-                    className="homesfy-widget__continue-chat"
-                    style={{
-                      color: resolvedTheme.primaryColor,
-                      fontSize: '10px',
-                      padding: '4px 8px',
-                      background: 'transparent',
-                      border: `1px solid rgba(${primaryRgb}, 0.3)`,
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      opacity: 0.8,
-                    }}
-                    onMouseEnter={(e) => e.target.style.opacity = '1'}
-                    onMouseLeave={(e) => e.target.style.opacity = '0.8'}
-                  >
-                    Ask mode →
-                  </button>
-                </div>
-                
-                {/* Combined Form with Name and Phone */}
-                <form 
-                  className="homesfy-widget__form homesfy-widget__form--lead-capture" 
-                  onSubmit={handleManualSubmit}
-                  style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
-                >
-                  {/* Name Field */}
-                  <div className="homesfy-widget__input-shell homesfy-widget__input-shell--name">
-                    <input
-                      type="text"
-                      className="homesfy-widget__field homesfy-widget__field--name"
-                      placeholder="Enter your name"
-                      value={leadFormName}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^a-zA-Z\s'-]/g, "");
-                        setLeadFormName(value);
-                        if (error) setError(null);
-                      }}
-                      disabled={isTyping || phoneSubmitted}
-                      autoComplete="name"
-                      autoCorrect="off"
-                      spellCheck={false}
-                    />
-                  </div>
-                  
-                  {/* Phone Field with Country Selector */}
-                  <div className="homesfy-widget__input-shell homesfy-widget__input-shell--phone">
-                    <div className="homesfy-widget__country" title={`Selected: ${selectedCountry?.name || 'Country'}`}>
-                      <label className="homesfy-widget__country-label">
-                        <span className="sr-only">Country code</span>
-                        <select
-                          aria-label="Country code"
-                          className="homesfy-widget__country-select"
-                          value={selectedCountryKey}
-                          onChange={(event) => {
-                            const next = findCountryByKey(event.target.value);
-                            if (next) {
-                              setSelectedCountry(next);
-                              if (error) setError(null);
-                            }
-                          }}
-                          disabled={isTyping}
-                        >
-                          {COUNTRY_PHONE_CODES.map((country) => (
-                            <option
-                              key={countryOptionKey(country)}
-                              value={countryOptionKey(country)}
-                              title={country.name}
-                            >
-                              {country.code}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                    
-                    <input
-                      type="tel"
-                      className="homesfy-widget__field homesfy-widget__field--phone"
-                      placeholder={`Enter your number${selectedCountry?.code ? ` (${selectedCountry.code} selected)` : ''}`}
-                      value={leadFormPhone}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^\d\s-]/g, "");
-                        setLeadFormPhone(value);
-                        if (error) setError(null);
-                      }}
-                      disabled={isTyping || phoneSubmitted}
-                      inputMode="tel"
-                      autoComplete="tel"
-                      autoCorrect="off"
-                      spellCheck={false}
-                    />
-                  </div>
-                  
-                  {/* Submit Button - Styled to match input fields */}
-                  <button
-                    type="submit"
-                    className="homesfy-widget__submit homesfy-widget__submit--combined"
-                    style={{ 
-                      background: resolvedTheme.primaryColor,
-                      width: '100%',
-                      marginTop: '8px',
-                      padding: '14px 20px',
-                      borderRadius: '10px',
-                      border: 'none',
-                      color: '#fff',
-                      fontSize: '15px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                      opacity: (isTyping || !leadFormName.trim() || !leadFormPhone.trim() || phoneSubmitted) ? 0.5 : 1,
-                    }}
-                    disabled={isTyping || !leadFormName.trim() || !leadFormPhone.trim() || phoneSubmitted}
-                    title="Submit lead"
-                    onMouseEnter={(e) => {
-                      if (!e.currentTarget.disabled) {
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-                    }}
-                  >
-                    Submit Details
-                  </button>
-                </form>
-              </>
-            )}
-            
-            {/* 1. Status Message for Sequential Flow (MOVED OUTSIDE FORM) */}
-            {(isNameInputActive || isPhoneInputActive) && !isLeadFormActive && (
+            {/* Status Message for Name/Phone Input */}
+            {(isNameInputActive || isPhoneInputActive) && (
               <div 
                 className="homesfy-widget__form-mode-indicator" 
                 style={{ 
@@ -2079,40 +1364,9 @@ export function ChatWidget({
                 <span>{isNameInputActive ? 'Please enter your name' : 'Almost there! Enter your number'}</span>
               </div>
             )}
-            
-            {/* 2. Continue Chatting Link for Sequential Flow (MOVED OUTSIDE FORM) */}
-            {(isNameInputActive || isPhoneInputActive) && !isLeadFormActive && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '4px' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    console.log("HomesfyChat: User clicked continue chatting");
-                    setAiInputMode("chat");
-                    setManualInput("");
-                    setError(null);
-                  }}
-                  className="homesfy-widget__continue-chat"
-                  style={{
-                    color: resolvedTheme.primaryColor,
-                    fontSize: '11px',
-                    padding: '2px 6px',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    textDecoration: 'underline',
-                    opacity: 0.8,
-                  }}
-                  onMouseEnter={(e) => e.target.style.opacity = '1'}
-                  onMouseLeave={(e) => e.target.style.opacity = '0.8'}
-                >
-                  or continue chatting →
-                </button>
-              </div>
-            )}
 
-            {/* 3. Sequential Form (Name or Phone separately) - Only show if NOT combined form */}
-            {!isLeadFormActive && (
-              <form 
+            {/* Form (Name or Phone separately) */}
+            <form 
                 className={`homesfy-widget__form ${isNameInputActive || isPhoneInputActive ? 'homesfy-widget__form--lead-capture' : ''}`} 
                 onSubmit={handleManualSubmit}
               >
@@ -2181,7 +1435,6 @@ export function ChatWidget({
                 {isNameInputActive || isPhoneInputActive ? "✓" : "➤"}
               </button>
             </form>
-            )}
           </div>
         </div>
       )}

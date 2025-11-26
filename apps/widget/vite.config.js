@@ -15,6 +15,9 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5001,
     strictPort: true,
+    cors: {
+      origin: "*",
+    },
   },
   build: {
     lib: {
@@ -24,15 +27,15 @@ export default defineConfig({
       formats: ["umd"],
     },
     rollupOptions: {
+      external: [], // Bundle React and ReactDOM instead of expecting them as externals
       output: {
-        globals: {
-          react: "React",
-          "react-dom": "ReactDOM",
-        },
+        // Optimize chunk size
+        manualChunks: undefined,
       },
     },
-    minify: true,
-    sourcemap: true,
+    minify: true, // Use default minifier (esbuild)
+    sourcemap: false, // Disable sourcemap for production to reduce size
+    chunkSizeWarningLimit: 1000,
   },
   define: {
     "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV),
