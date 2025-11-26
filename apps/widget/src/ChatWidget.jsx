@@ -4,7 +4,7 @@ import "./styles.css";
 const DEFAULT_PRIMARY_COLOR = "#6158ff";
 const DEFAULT_PRIMARY_RGB = "97, 88, 255";
 const DEFAULT_AVATAR_URL =
-  "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeHN2Z2FzdmY4MmFjYWZ2enl1cWx1d3ozYnkwNWJxb2l4dXUzcDZvOCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/3oriO0OEd9QIDdllqo/giphy.gif";
+  "https://v2assets.zopim.io/2F4uasrDz8AwB7cxrCz3igHZtZovK0w4-concierge?1759235162633";
 
 function extractRgbChannels(color) {
   if (typeof color !== "string") {
@@ -657,7 +657,11 @@ export function ChatWidget({
 
     setTimeout(() => {
       console.log("HomesfyChat: BHK selected, switching to NAME + PHONE input mode");
-      pushSystemMessage(resolvedTheme.namePrompt || "Please enter your name and phone number");
+      // Ask for both name and phone together in one message
+      const combinedPrompt = resolvedTheme.namePrompt || 
+        resolvedTheme.phonePrompt || 
+        "Please enter your name and phone number";
+      pushSystemMessage(combinedPrompt);
       setIsTyping(false);
     }, 1500);
   };
@@ -890,7 +894,7 @@ export function ChatWidget({
         number: phoneNumber,
         tracking_lead_id: magnetId || `chat-${Date.now()}`,
         nationality: nationality,
-        source_id: magnetId ? 49 : 31, // 49 for magnet, 31 for regular chat
+        source_id: magnetId ? 49 : 31, // 49 for magnet campaigns, 31 for regular chat widget leads
         project_id: Number(finalProjectId) || Number(projectId) || 5796, // Ensure it's a number
         Digital: {
           user_device: deviceInfo,
@@ -1199,7 +1203,7 @@ export function ChatWidget({
                 </p>
                 <p className="homesfy-widget__agent-status">
                   <span className="homesfy-widget__status-dot" aria-hidden />
-                  Live property expert • replies under 2 min
+                  Live property expert • 
                 </p>
               </div>
             </div>
@@ -1331,77 +1335,79 @@ export function ChatWidget({
                   handleManualSubmit(e);
                 }}
               >
-                {/* Name Field */}
-                <div className="homesfy-widget__input-shell homesfy-widget__input-shell--name">
-                  <input
-                    type="text"
-                    className="homesfy-widget__field homesfy-widget__field--name"
-                    placeholder="Enter your name"
-                    value={nameInput}
-                    onChange={handleNameInputChange}
-                    disabled={isTyping || phoneSubmitted}
-                    inputMode="text"
-                    autoComplete="name"
-                    autoCorrect="off"
-                    spellCheck={false}
-                  />
-                </div>
-
-                {/* Phone Field with Country Code */}
-                <div className="homesfy-widget__input-shell homesfy-widget__input-shell--phone">
-                  <div className="homesfy-widget__country" title={`Selected: ${selectedCountry?.name || 'Country'}`}>
-                    <label className="homesfy-widget__country-label">
-                      <span className="sr-only">Country code</span>
-                      <select
-                        aria-label="Country code"
-                        className="homesfy-widget__country-select"
-                        value={selectedCountryKey}
-                        onChange={(event) => {
-                          const next = findCountryByKey(event.target.value);
-                          if (next) {
-                            setSelectedCountry(next);
-                            if (error) {
-                              setError(null);
-                            }
-                            console.log("HomesfyChat: Country code selected:", next.code, next.name);
-                          }
-                        }}
-                        disabled={isTyping}
-                      >
-                        {COUNTRY_PHONE_CODES.map((country) => (
-                          <option
-                            key={countryOptionKey(country)}
-                            value={countryOptionKey(country)}
-                            title={country.name}
-                          >
-                            {country.code}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                <div className="homesfy-widget__lead-capture-fields">
+                  {/* Name Field */}
+                  <div className="homesfy-widget__input-shell homesfy-widget__input-shell--name">
+                    <input
+                      type="text"
+                      className="homesfy-widget__field homesfy-widget__field--name"
+                      placeholder="Enter your name"
+                      value={nameInput}
+                      onChange={handleNameInputChange}
+                      disabled={isTyping || phoneSubmitted}
+                      inputMode="text"
+                      autoComplete="name"
+                      autoCorrect="off"
+                      spellCheck={false}
+                    />
                   </div>
-                  <input
-                    type="tel"
-                    className="homesfy-widget__field homesfy-widget__field--phone"
-                    placeholder={`Enter your number${selectedCountry?.code ? ` (${selectedCountry.code} selected)` : ''}`}
-                    value={phoneInput}
-                    onChange={handlePhoneInputChange}
-                    disabled={isTyping || phoneSubmitted}
-                    inputMode="tel"
-                    autoComplete="tel"
-                    autoCorrect="off"
-                    spellCheck={false}
-                  />
+
+                  {/* Phone Field with Country Code */}
+                  <div className="homesfy-widget__input-shell homesfy-widget__input-shell--phone">
+                    <div className="homesfy-widget__country" title={`Selected: ${selectedCountry?.name || 'Country'}`}>
+                      <label className="homesfy-widget__country-label">
+                        <span className="sr-only">Country code</span>
+                        <select
+                          aria-label="Country code"
+                          className="homesfy-widget__country-select"
+                          value={selectedCountryKey}
+                          onChange={(event) => {
+                            const next = findCountryByKey(event.target.value);
+                            if (next) {
+                              setSelectedCountry(next);
+                              if (error) {
+                                setError(null);
+                              }
+                              console.log("HomesfyChat: Country code selected:", next.code, next.name);
+                            }
+                          }}
+                          disabled={isTyping}
+                        >
+                          {COUNTRY_PHONE_CODES.map((country) => (
+                            <option
+                              key={countryOptionKey(country)}
+                              value={countryOptionKey(country)}
+                              title={country.name}
+                            >
+                              {country.code}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <input
+                      type="tel"
+                      className="homesfy-widget__field homesfy-widget__field--phone"
+                      placeholder="Enter your number"
+                      value={phoneInput}
+                      onChange={handlePhoneInputChange}
+                      disabled={isTyping || phoneSubmitted}
+                      inputMode="tel"
+                      autoComplete="tel"
+                      autoCorrect="off"
+                      spellCheck={false}
+                    />
+                  </div>
                 </div>
                 
                 <button
                   type="submit"
-                  className="homesfy-widget__submit"
+                  className="homesfy-widget__submit homesfy-widget__submit--lead-capture"
                   style={{ background: resolvedTheme.primaryColor }}
                   disabled={isTyping || !nameInput.trim() || !phoneInput.trim() || phoneSubmitted}
                   title="Submit name and phone number"
                 >
-                  ✓
+                  Submit
                 </button>
               </form>
             ) : (
