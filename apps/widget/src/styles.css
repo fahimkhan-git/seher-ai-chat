@@ -663,6 +663,7 @@
   background: var(--homesfy-primary);
   box-shadow: 0 12px 26px rgba(var(--homesfy-primary-rgb), 0.32);
   transition: all 0.2s ease;
+  border-radius: 5px;
 }
 
 .homesfy-widget__submit:hover:not(:disabled) {
