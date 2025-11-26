@@ -15,32 +15,46 @@ const configFilePathAlt = path.resolve(process.cwd(), "data/widget-config.json")
 
 let widgetConfigData = null;
 function loadConfigFile() {
+  // On Vercel, the file structure is different - try multiple paths
+  const cwd = process.cwd();
   const pathsToTry = [
-    configFilePath,           // Primary: relative to module
-    configFilePathAlt,         // Alternative: from process.cwd()
-    path.join(process.cwd(), "apps/api/data/widget-config.json"), // Vercel build path
-    path.join(process.cwd(), "data/widget-config.json"),          // Root data path
+    // Try relative to module first (local dev)
+    configFilePath,
+    // Try from various Vercel build locations
+    path.join(cwd, "apps/api/data/widget-config.json"),
+    path.join(cwd, "api/data/widget-config.json"),
+    path.join(cwd, "data/widget-config.json"),
+    path.join(cwd, "../data/widget-config.json"),
+    path.join(cwd, "../../data/widget-config.json"),
+    // Fallback: try from process.cwd() root
+    configFilePathAlt,
   ];
   
   for (const filePath of pathsToTry) {
     try {
       const raw = readFileSync(filePath, "utf-8");
       const parsed = JSON.parse(raw);
-      console.log(`✅ Config file loaded from: ${filePath}`);
+      console.log(`✅ Config file loaded successfully from: ${filePath}`);
+      console.log(`   CWD: ${cwd}`);
+      console.log(`   Module dir: ${moduleDir}`);
       return parsed;
     } catch (error) {
-      // Continue to next path
+      // Log each failed attempt in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`   Tried: ${filePath} - ${error.code || error.message}`);
+      }
       continue;
     }
   }
   
-  // If all paths failed, log details
-  console.warn("⚠️  Could not load config file from any path:", {
-    tried: pathsToTry,
-    cwd: process.cwd(),
-    moduleDir: moduleDir,
-    vercel: !!process.env.VERCEL
-  });
+  // If all paths failed, log detailed error
+  console.error("❌ CRITICAL: Could not load config file from any path!");
+  console.error("   Tried paths:", pathsToTry);
+  console.error("   Current working directory:", cwd);
+  console.error("   Module directory:", moduleDir);
+  console.error("   Vercel environment:", !!process.env.VERCEL);
+  console.error("   __dirname equivalent:", moduleDir);
+  
   return null;
 }
 
