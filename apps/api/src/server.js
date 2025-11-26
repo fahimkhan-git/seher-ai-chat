@@ -80,8 +80,24 @@ async function bootstrap() {
         allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
       };
 
+  // Handle OPTIONS preflight requests FIRST - before CORS middleware
+  app.options("*", (req, res) => {
+    const origin = req.headers.origin;
+    if (expandedOrigins.includes("*")) {
+      res.header('Access-Control-Allow-Origin', '*');
+    } else if (origin && expandedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Credentials', 'true');
+    } else {
+      res.header('Access-Control-Allow-Origin', '*');
+    }
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-API-Key');
+    res.header('Access-Control-Max-Age', '86400'); // 24 hours
+    res.status(200).end();
+  });
+
   app.use(cors(corsOptions));
-  app.options("*", cors(corsOptions));
   
   // Additional CORS headers for all responses
   app.use((req, res, next) => {
@@ -101,7 +117,7 @@ async function bootstrap() {
       }
     }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-API-Key');
     next();
   });
 
