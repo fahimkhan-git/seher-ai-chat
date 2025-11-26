@@ -367,13 +367,13 @@ export function ChatWidget({
 
   const resolvedTheme = useMemo(
     () => ({
-      agentName: theme.agentName || "Pooja Agarwal",
+      agentName: theme.agentName || "Riya Agarwal",
       avatarUrl: resolveAvatarUrl(theme.avatarUrl),
       primaryColor: theme.primaryColor || DEFAULT_PRIMARY_COLOR,
       bubblePosition: theme.bubblePosition || "bottom-right",
       welcomeMessage:
         theme.welcomeMessage ||
-        "Hey, I'm Pooja Agarwal! How can I help you understand this project?",
+        "Hey, I'm Riya Agarwal! How can I help you understand this project?",
       namePrompt:
         theme.namePrompt || "Please enter your name",
       ctaAcknowledgement:

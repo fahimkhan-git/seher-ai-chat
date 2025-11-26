@@ -8,36 +8,63 @@ import { fileURLToPath } from "url";
 import path from "path";
 
 // Import config file directly for Vercel (ensures it's included in build)
-const configFilePath = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../../data/widget-config.json"
-);
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+const configFilePath = path.resolve(moduleDir, "../../data/widget-config.json");
+// Also try from process.cwd() for Vercel
+const configFilePathAlt = path.resolve(process.cwd(), "data/widget-config.json");
 
 let widgetConfigData = null;
-try {
-  if (process.env.VERCEL) {
-    // On Vercel, read the file synchronously at module load time
-    const raw = readFileSync(configFilePath, "utf-8");
-    widgetConfigData = JSON.parse(raw);
+function loadConfigFile() {
+  const pathsToTry = [
+    configFilePath,           // Primary: relative to module
+    configFilePathAlt,         // Alternative: from process.cwd()
+    path.join(process.cwd(), "apps/api/data/widget-config.json"), // Vercel build path
+    path.join(process.cwd(), "data/widget-config.json"),          // Root data path
+  ];
+  
+  for (const filePath of pathsToTry) {
+    try {
+      const raw = readFileSync(filePath, "utf-8");
+      const parsed = JSON.parse(raw);
+      console.log(`✅ Config file loaded from: ${filePath}`);
+      return parsed;
+    } catch (error) {
+      // Continue to next path
+      continue;
+    }
   }
-} catch (error) {
-  console.warn("Could not load config file at build time:", error.message);
+  
+  // If all paths failed, log details
+  console.warn("⚠️  Could not load config file from any path:", {
+    tried: pathsToTry,
+    cwd: process.cwd(),
+    moduleDir: moduleDir,
+    vercel: !!process.env.VERCEL
+  });
+  return null;
 }
+
+// Load config at module initialization
+widgetConfigData = loadConfigFile();
 
 const FILE_NAME = "widget-config.json";
 const DEFAULT_STORE = { configs: [] };
 const useMongo = config.dataStore === "mongo";
 
 async function loadStore() {
-  // On Vercel, use the imported JSON directly (faster and more reliable)
-  if (process.env.VERCEL) {
-    try {
-      return widgetConfigData || DEFAULT_STORE;
-    } catch (error) {
-      console.warn("Failed to use imported config, falling back to file read:", error.message);
-    }
+  // If we have the config data loaded, use it (works on both Vercel and local)
+  if (widgetConfigData) {
+    return widgetConfigData;
   }
-  // Local development: read from file (allows updates without restart)
+  
+  // Fallback: try to load it now (in case it wasn't loaded at module init)
+  const loaded = loadConfigFile();
+  if (loaded) {
+    widgetConfigData = loaded;
+    return loaded;
+  }
+  
+  // Last resort: try reading from file system (for local development)
   return readJson(FILE_NAME, DEFAULT_STORE);
 }
 

@@ -70,7 +70,7 @@
       "projectId": "test-project-id",
       "agentName": "Riya from Homesfy",
       "avatarUrl": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNzlzZ2R4b3J2OHJ2MjFpd3RiZW5sbmxwOHVzb3RrdmNmZTh5Z25mYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/g9582DNuQppxC/giphy.gif",
-      "primaryColor": "#6158ff",
+      "primaryColor": "#1b6b4b",
       "followupMessage": "Sure… I’ll send that across right away!",
       "bhkPrompt": "Which configuration you are looking for?",
       "inventoryMessage": "That’s cool… we have inventory available with us.",
@@ -84,3 +84,7 @@
     }
   ]
 }
+
+
+
+
