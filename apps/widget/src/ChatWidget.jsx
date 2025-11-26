@@ -361,9 +361,11 @@ export function ChatWidget({
   const hasShownRef = useRef(false);
   const autoOpenTimeoutRef = useRef(null);
   const [manualInput, setManualInput] = useState("");
+  const [nameInput, setNameInput] = useState(""); // Separate state for name
+  const [phoneInput, setPhoneInput] = useState(""); // Separate state for phone
   const [selectedCountry, setSelectedCountry] = useState(DEFAULT_COUNTRY);
-  // Simple flow state: CTA → BHK → Name → Phone
-  const [currentStage, setCurrentStage] = useState("cta"); // "cta" | "bhk" | "name" | "phone" | "complete"
+  // Simple flow state: CTA → BHK → Name + Phone (together)
+  const [currentStage, setCurrentStage] = useState("cta"); // "cta" | "bhk" | "name" | "complete"
 
   const resolvedTheme = useMemo(
     () => ({
@@ -642,6 +644,8 @@ export function ChatWidget({
   const handleBhkSelect = (bhk) => {
     setSelectedBhk(bhk);
     setManualInput("");
+    setNameInput("");
+    setPhoneInput("");
     pushUserMessage(bhk);
     trackEvent("chat_started", { bhkType: bhk });
     setCurrentStage("name");
@@ -652,71 +656,19 @@ export function ChatWidget({
     }, 500);
 
     setTimeout(() => {
-      console.log("HomesfyChat: BHK selected, switching to NAME input mode");
-      pushSystemMessage(resolvedTheme.namePrompt || "Please enter your name");
+      console.log("HomesfyChat: BHK selected, switching to NAME + PHONE input mode");
+      pushSystemMessage(resolvedTheme.namePrompt || "Please enter your name and phone number");
       setIsTyping(false);
     }, 1500);
   };
 
-  const handleNameSubmit = async (name) => {
-    const trimmedName = name.trim();
-    
-    // Strict Name Validation
-    if (!trimmedName || trimmedName.length < 2) {
-      setError("Please enter a valid name (at least 2 characters).");
-      return false;
-    }
-    
-    const namePattern = /^[a-zA-Z\s'-]{2,50}$/;
-    if (!namePattern.test(trimmedName)) {
-      setError("Please enter a valid name (letters only).");
-      return false;
-    }
-    
-    // Reject if it looks like a phone number
-    if (/^[\d\+\s\-\(\)]+$/.test(trimmedName.replace(/\s/g, ''))) {
-      setError("Please enter your name, not a phone number.");
-      return false;
-    }
-    
-    // SUCCESS: Handle State Locally
-    setUserName(trimmedName);
-    pushUserMessage(trimmedName);
-    setNameSubmitted(true);
-    setCurrentStage("phone");
-    
-    // Clear input/error
-    setManualInput("");
-    setError(null);
-    setIsTyping(true);
+  // handleNameSubmit is no longer used - both fields are submitted together
+  // Keeping for backward compatibility but it won't be called
 
-    console.log("HomesfyChat: ✅ Name submitted, switching to phone stage");
-
-    // Simulate Agent asking for Phone
-    setTimeout(() => {
-      setIsTyping(false);
-      pushSystemMessage(`Thanks ${trimmedName}! Now please enter your mobile number to receive the details.`);
-    }, 600);
-    
-    return true;
-  };
-
-  // Simple flow: CTA → BHK → Name → Phone
+  // Simple flow: CTA → BHK → Name + Phone (together)
   const isNameInputActive = currentStage === "name" && !nameSubmitted;
-  const isPhoneInputActive = currentStage === "phone" && nameSubmitted && !phoneSubmitted;
-  
-  // Define replyPlaceholder BEFORE useEffect to avoid initialization error
-  // Make it clear what's expected, especially for phone with country code
-  const replyPlaceholder = 
-    isNameInputActive
-      ? "Enter your name"
-      : isPhoneInputActive
-      ? `Enter your number${selectedCountry?.code ? ` (${selectedCountry.code} selected)` : ''}`
-      : !selectedCta
-      ? "Write a reply.."
-      : !selectedBhk
-      ? "Tell us your preferred configuration"
-      : "Write a reply..";
+  const isPhoneInputActive = currentStage === "name" && !phoneSubmitted; // Show phone field together with name
+  const isLeadCaptureActive = isNameInputActive || isPhoneInputActive;
   
   // Debug logging
   useEffect(() => {
@@ -730,25 +682,34 @@ export function ChatWidget({
 
   const handleManualInputChange = (event) => {
     let nextValue = event.target.value;
-
-    if (isPhoneInputActive) {
-      // For phone input: user selects country code from dropdown, then types only digits
-      // Remove everything except digits, spaces, and hyphens
-      // If user types +, we'll strip it since country code comes from dropdown
-      nextValue = nextValue.replace(/[^\d\s-]/g, "");
-      
-      // Remove any + signs since country code is selected from dropdown
-      nextValue = nextValue.replace(/\+/g, "");
-      
-      // Clean up multiple spaces
-      nextValue = nextValue.replace(/\s+/g, " ").trim();
-    } else if (isNameInputActive) {
-      // Allow letters, spaces, and common name characters
-      nextValue = nextValue.replace(/[^a-zA-Z\s'-]/g, "");
-    }
-
+    // For regular chat input (not lead capture)
+    nextValue = nextValue.replace(/[^\w\s.,!?@#$%^&*()\-+=]/g, "");
     setManualInput(nextValue);
+    if (error) {
+      setError(null);
+    }
+  };
 
+  const handleNameInputChange = (event) => {
+    let nextValue = event.target.value;
+    // Allow letters, spaces, and common name characters
+    nextValue = nextValue.replace(/[^a-zA-Z\s'-]/g, "");
+    setNameInput(nextValue);
+    if (error) {
+      setError(null);
+    }
+  };
+
+  const handlePhoneInputChange = (event) => {
+    let nextValue = event.target.value;
+    // For phone input: user selects country code from dropdown, then types only digits
+    // Remove everything except digits, spaces, and hyphens
+    nextValue = nextValue.replace(/[^\d\s-]/g, "");
+    // Remove any + signs since country code is selected from dropdown
+    nextValue = nextValue.replace(/\+/g, "");
+    // Clean up multiple spaces
+    nextValue = nextValue.replace(/\s+/g, " ").trim();
+    setPhoneInput(nextValue);
     if (error) {
       setError(null);
     }
@@ -1153,17 +1114,37 @@ export function ChatWidget({
       return;
     }
 
-    // Stage 3: Name collection
+    // Stage 3: Name + Phone collection (together)
     if (isNameInputActive) {
-      const success = await handleNameSubmit(trimmed);
-      return;
-    }
-
-    // Stage 4: Phone collection
-    if (isPhoneInputActive) {
-      const success = await submitLeadInput(rawValue);
+      // When in name stage, submit both name and phone together
+      const nameTrimmed = nameInput.trim();
+      const phoneTrimmed = phoneInput.trim();
+      
+      // Validate name
+      if (!nameTrimmed || nameTrimmed.length < 2) {
+        setError("Please enter your name (at least 2 characters).");
+        return;
+      }
+      
+      const namePattern = /^[a-zA-Z\s'-]{2,50}$/;
+      if (!namePattern.test(nameTrimmed)) {
+        setError("Please enter a valid name (letters only).");
+        return;
+      }
+      
+      // Validate phone
+      if (!phoneTrimmed) {
+        setError("Please enter your phone number.");
+        return;
+      }
+      
+      // Submit phone with name
+      const success = await submitLeadInput(phoneTrimmed, nameTrimmed);
       if (success) {
-        setManualInput("");
+        setNameInput("");
+        setPhoneInput("");
+        setUserName(nameTrimmed);
+        setNameSubmitted(true);
       }
       return;
     }
@@ -1341,41 +1322,33 @@ export function ChatWidget({
 
             {error && <p className="homesfy-widget__error">{error}</p>}
 
-            {/* Status Message for Name/Phone Input */}
-            {(isNameInputActive || isPhoneInputActive) && (
-              <div 
-                className="homesfy-widget__form-mode-indicator" 
-                style={{ 
-                  fontSize: '12px', 
-                  color: resolvedTheme.primaryColor, 
-                  fontWeight: '600',
-                  marginBottom: '8px',
-                  padding: '8px 12px',
-                  background: `rgba(${primaryRgb}, 0.08)`,
-                  borderRadius: '6px',
-                  textAlign: 'center',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
+            {/* Form - Show both name and phone fields together when in name stage */}
+            {isLeadCaptureActive ? (
+              <form 
+                className="homesfy-widget__form homesfy-widget__form--lead-capture" 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleManualSubmit(e);
                 }}
               >
-                <span>{isNameInputActive ? '📝' : '📞'}</span>
-                <span>{isNameInputActive ? 'Please enter your name' : 'Almost there! Enter your number'}</span>
-              </div>
-            )}
+                {/* Name Field */}
+                <div className="homesfy-widget__input-shell homesfy-widget__input-shell--name">
+                  <input
+                    type="text"
+                    className="homesfy-widget__field homesfy-widget__field--name"
+                    placeholder="Enter your name"
+                    value={nameInput}
+                    onChange={handleNameInputChange}
+                    disabled={isTyping || phoneSubmitted}
+                    inputMode="text"
+                    autoComplete="name"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                </div>
 
-            {/* Form (Name or Phone separately) */}
-            <form 
-                className={`homesfy-widget__form ${isNameInputActive || isPhoneInputActive ? 'homesfy-widget__form--lead-capture' : ''}`} 
-                onSubmit={handleManualSubmit}
-              >
-              <div
-                className={`homesfy-widget__input-shell${
-                  isPhoneInputActive ? " homesfy-widget__input-shell--phone" : ""
-                }${isNameInputActive ? " homesfy-widget__input-shell--name" : ""}`}
-              >
-                {isPhoneInputActive && (
+                {/* Phone Field with Country Code */}
+                <div className="homesfy-widget__input-shell homesfy-widget__input-shell--phone">
                   <div className="homesfy-widget__country" title={`Selected: ${selectedCountry?.name || 'Country'}`}>
                     <label className="homesfy-widget__country-label">
                       <span className="sr-only">Country code</span>
@@ -1407,34 +1380,62 @@ export function ChatWidget({
                       </select>
                     </label>
                   </div>
-                )}
-
-                <input
-                  type={isPhoneInputActive ? "tel" : "text"}
-                  className={`homesfy-widget__field${
-                    isPhoneInputActive ? " homesfy-widget__field--phone" : ""
-                  }${isNameInputActive ? " homesfy-widget__field--name" : ""}`}
-                  placeholder={replyPlaceholder}
-                  value={manualInput}
-                  onChange={handleManualInputChange}
-                  disabled={isTyping || phoneSubmitted}
-                  inputMode={isPhoneInputActive ? "tel" : isNameInputActive ? "text" : "text"}
-                  autoComplete="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                />
-              </div>
-              
-              <button
-                type="submit"
-                className="homesfy-widget__submit"
-                style={{ background: resolvedTheme.primaryColor }}
-                disabled={isTyping || !manualInput.trim() || phoneSubmitted}
-                title={isNameInputActive ? "Submit name" : isPhoneInputActive ? "Submit phone number" : "Send message"}
+                  <input
+                    type="tel"
+                    className="homesfy-widget__field homesfy-widget__field--phone"
+                    placeholder={`Enter your number${selectedCountry?.code ? ` (${selectedCountry.code} selected)` : ''}`}
+                    value={phoneInput}
+                    onChange={handlePhoneInputChange}
+                    disabled={isTyping || phoneSubmitted}
+                    inputMode="tel"
+                    autoComplete="tel"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                </div>
+                
+                <button
+                  type="submit"
+                  className="homesfy-widget__submit"
+                  style={{ background: resolvedTheme.primaryColor }}
+                  disabled={isTyping || !nameInput.trim() || !phoneInput.trim() || phoneSubmitted}
+                  title="Submit name and phone number"
+                >
+                  ✓
+                </button>
+              </form>
+            ) : (
+              /* Regular Chat Form */
+              <form 
+                className="homesfy-widget__form" 
+                onSubmit={handleManualSubmit}
               >
-                {isNameInputActive || isPhoneInputActive ? "✓" : "➤"}
-              </button>
-            </form>
+                <div className="homesfy-widget__input-shell">
+                  <input
+                    type="text"
+                    className="homesfy-widget__field"
+                    placeholder={!selectedCta ? "Write a reply.." : !selectedBhk ? "Tell us your preferred configuration" : "Write a reply.."}
+                    value={manualInput}
+                    onChange={handleManualInputChange}
+                    disabled={isTyping || phoneSubmitted}
+                    inputMode="text"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                </div>
+                
+                <button
+                  type="submit"
+                  className="homesfy-widget__submit"
+                  style={{ background: resolvedTheme.primaryColor }}
+                  disabled={isTyping || !manualInput.trim() || phoneSubmitted}
+                  title="Send message"
+                >
+                  ➤
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}
