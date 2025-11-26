@@ -3,12 +3,41 @@ import { config } from "../config.js";
 import { WidgetConfig } from "../models/WidgetConfig.js";
 import { toPlainObject } from "../utils/doc.js";
 import { readJson, writeJson } from "./fileStore.js";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import path from "path";
+
+// Import config file directly for Vercel (ensures it's included in build)
+const configFilePath = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../data/widget-config.json"
+);
+
+let widgetConfigData = null;
+try {
+  if (process.env.VERCEL) {
+    // On Vercel, read the file synchronously at module load time
+    const raw = readFileSync(configFilePath, "utf-8");
+    widgetConfigData = JSON.parse(raw);
+  }
+} catch (error) {
+  console.warn("Could not load config file at build time:", error.message);
+}
 
 const FILE_NAME = "widget-config.json";
 const DEFAULT_STORE = { configs: [] };
 const useMongo = config.dataStore === "mongo";
 
 async function loadStore() {
+  // On Vercel, use the imported JSON directly (faster and more reliable)
+  if (process.env.VERCEL) {
+    try {
+      return widgetConfigData || DEFAULT_STORE;
+    } catch (error) {
+      console.warn("Failed to use imported config, falling back to file read:", error.message);
+    }
+  }
+  // Local development: read from file (allows updates without restart)
   return readJson(FILE_NAME, DEFAULT_STORE);
 }
 

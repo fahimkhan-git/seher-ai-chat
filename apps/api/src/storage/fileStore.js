@@ -7,7 +7,15 @@ import { fileURLToPath } from "url";
 // fileStore.js is at: apps/api/src/storage/fileStore.js
 // data directory is at: apps/api/data/
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
-const defaultDataDirectory = path.resolve(moduleDirectory, "../../data");
+// On Vercel, the path structure might be different - try multiple locations
+let defaultDataDirectory = path.resolve(moduleDirectory, "../../data");
+// Fallback: try from process.cwd() if the relative path doesn't work
+if (process.env.VERCEL) {
+  // On Vercel, try from the API root
+  const vercelDataDir = path.resolve(process.cwd(), "data");
+  // Check if this path exists (will be checked at runtime)
+  defaultDataDirectory = vercelDataDir;
+}
 
 function resolveDataDirectory(input) {
   if (!input) {
@@ -53,11 +61,22 @@ export async function readJson(fileName, defaultValue) {
     console.error(`Failed to read file ${filePath}:`, error.message);
     console.error(`Data directory: ${dataDirectory}`);
     console.error(`File path: ${filePath}`);
+    console.error(`Process cwd: ${process.cwd()}`);
+    console.error(`Module directory: ${moduleDirectory}`);
     
-    // On Vercel, if file doesn't exist, return default (can't create it)
+    // On Vercel, try alternative paths
     if (process.env.VERCEL && error.code === "ENOENT") {
-      console.warn(`File ${fileName} not found on Vercel, returning default. Make sure the file is committed to git.`);
-      return JSON.parse(JSON.stringify(defaultValue));
+      // Try alternative path from process.cwd()
+      const altPath = path.resolve(process.cwd(), "data", fileName);
+      console.log(`Trying alternative path: ${altPath}`);
+      try {
+        const raw = await readFile(altPath, "utf-8");
+        return JSON.parse(raw);
+      } catch (altError) {
+        console.warn(`Alternative path also failed: ${altError.message}`);
+        console.warn(`File ${fileName} not found on Vercel, returning default. Make sure the file is committed to git.`);
+        return JSON.parse(JSON.stringify(defaultValue));
+      }
     }
     
     if (error.code === "ENOENT") {
