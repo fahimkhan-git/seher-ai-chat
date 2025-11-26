@@ -218,9 +218,12 @@ async function init(options = {}) {
   const isHttpsSite = window.location.protocol === 'https:';
   const isLocalhost = apiBaseUrl && (apiBaseUrl.includes('localhost') || apiBaseUrl.includes('127.0.0.1'));
   
+  // Production API URL (stable domain)
+  const PRODUCTION_API_URL = "https://api-three-pearl.vercel.app";
+  
   if (isHttpsSite && isLocalhost) {
     console.error("HomesfyChat: ERROR - localhost API detected on HTTPS site! Forcing production API.");
-    apiBaseUrl = "https://api-42l4mysh1-fahimkhan-gits-projects.vercel.app";
+    apiBaseUrl = PRODUCTION_API_URL;
     console.warn("HomesfyChat: Forced to production API:", apiBaseUrl);
   }
   
@@ -237,7 +240,7 @@ async function init(options = {}) {
       console.log("HomesfyChat: Using localhost API for local development:", apiBaseUrl);
     } else {
       // For ANY other site (production, staging, etc.), use production API
-      apiBaseUrl = "https://api-42l4mysh1-fahimkhan-gits-projects.vercel.app";
+      apiBaseUrl = PRODUCTION_API_URL;
       console.warn("HomesfyChat: No API URL specified, using production API:", apiBaseUrl);
     }
   }
@@ -250,14 +253,14 @@ async function init(options = {}) {
   
   if (!isActuallyLocalhost && apiBaseUrl && (apiBaseUrl.includes('localhost') || apiBaseUrl.includes('127.0.0.1'))) {
     console.error("HomesfyChat: CRITICAL ERROR - localhost API detected on non-localhost site! Forcing production API.");
-    apiBaseUrl = "https://api-42l4mysh1-fahimkhan-gits-projects.vercel.app";
+    apiBaseUrl = PRODUCTION_API_URL;
     console.warn("HomesfyChat: Final override to production API:", apiBaseUrl);
   }
   
   // Additional check: If on HTTPS, NEVER use HTTP localhost
   if (window.location.protocol === 'https:' && apiBaseUrl && (apiBaseUrl.includes('localhost') || apiBaseUrl.includes('127.0.0.1'))) {
     console.error("HomesfyChat: CRITICAL ERROR - localhost API detected on HTTPS site! Forcing production API.");
-    apiBaseUrl = "https://api-42l4mysh1-fahimkhan-gits-projects.vercel.app";
+    apiBaseUrl = PRODUCTION_API_URL;
     console.warn("HomesfyChat: HTTPS override to production API:", apiBaseUrl);
   }
   
@@ -284,18 +287,12 @@ async function init(options = {}) {
   let detectedPropertyInfo = detectPropertyFromPage();
   console.log("HomesfyChat: Property detection result:", detectedPropertyInfo && Object.keys(detectedPropertyInfo).length > 0 ? "Property detected" : "No property detected");
   
-  // If property detected, send it to API to update config for this project (non-blocking)
-  if (detectedPropertyInfo && apiBaseUrl && Object.keys(detectedPropertyInfo).length > 0) {
-    console.log("HomesfyChat: Detected property from page, sending to API:", detectedPropertyInfo);
-    // Don't await - send in background to not block widget mounting
-    fetch(`${apiBaseUrl}/api/widget-config/${encodeURIComponent(projectId)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ propertyInfo: detectedPropertyInfo }),
-      credentials: 'omit', // Don't send credentials
-    }).catch(() => {
-      // Silently fail - widget will still work with detected info
-    });
+  // If property detected, use it locally (don't POST to API - requires API key)
+  // The widget will use detected property info directly without updating server config
+  // This avoids 401 errors and works perfectly for widget functionality
+  if (detectedPropertyInfo && Object.keys(detectedPropertyInfo).length > 0) {
+    console.log("HomesfyChat: Detected property from page:", detectedPropertyInfo);
+    // Property info will be merged into theme below - no need to POST to API
   }
   
   // Always prioritize detected property info over remote config
