@@ -48,15 +48,63 @@
   visibility: visible !important;
   opacity: 1 !important;
   position: relative !important;
+  animation: bubbleAppear 0.3s ease-out;
 }
 
-/* Hide bubble button on mobile devices */
-@media (max-width: 768px) {
+@keyframes bubbleAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Mobile: Show bubble button but make it visible instantly - only profile pic */
+@media (max-width: 960px) {
   .homesfy-widget__bubble-button {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    animation: none; /* Instant appearance on mobile */
+    /* bottom: 20px; */
+    /* right: 20px; */
+    width: 56px !important;
+    height: 56px !important;
+    background: transparent !important; /* No background on mobile */
+    border: none !important; /* No border on mobile */
+    box-shadow: none !important; /* No shadow on mobile */
+    padding: 0 !important; /* No padding on mobile */
+    border-radius: 50% !important; /* Circular avatar */
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 0 !important; /* No gap on mobile */
+  }
+  
+  /* Hide text and glow on mobile */
+  .homesfy-widget__bubble-text,
+  .homesfy-widget__bubble-glow {
     display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
+  }
+  
+  /* Show only avatar on mobile - make it circular */
+  .homesfy-widget__bubble-avatar {
+    width: 66px !important;
+    height: 66px !important;
+    object-fit: cover;
+    display: block !important;
+    border: none !important; /* Remove border on mobile */
+    margin: 0 !important;
+  }
+}
+
+/* Mobile: Widget appears instantly (no animation delay) */
+@media (max-width: 960px) {
+  .homesfy-widget {
+    animation: none;
   }
 }
 
@@ -356,6 +404,18 @@
   color: var(--homesfy-muted);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   border: 1px solid rgba(0, 0, 0, 0.05);
+  animation: messageSlideIn 0.4s ease-out;
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .homesfy-widget__bubble--user {
@@ -437,9 +497,33 @@
   padding: 14px 16px;
   font-weight: 600;
   text-align: right;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   box-shadow: 0 8px 18px rgba(var(--homesfy-primary-rgb), 0.12);
   cursor: pointer;
+}
+
+.homesfy-widget__cta-button--hidden {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
+.homesfy-widget__cta-button--visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  animation: ctaSlideIn 0.4s ease-out;
+}
+
+@keyframes ctaSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .homesfy-widget__cta-button:hover {
@@ -663,7 +747,7 @@
   background: var(--homesfy-primary);
   box-shadow: 0 12px 26px rgba(var(--homesfy-primary-rgb), 0.32);
   transition: all 0.2s ease;
-  border-radius: 5px;
+  border-radius: 5px ;
 }
 
 .homesfy-widget__submit:hover:not(:disabled) {
@@ -792,6 +876,7 @@
     gap: 8px;
   }
 
+  /* On mobile, keep bubble visible even when chat is open (it will be hidden by fullscreen) */
   .homesfy-widget--open .homesfy-widget__bubble-button {
     display: none;
   }
@@ -851,12 +936,17 @@
     width: 100vw;
   }
 
-  /* Hide bubble button completely on mobile */
+  /* Keep bubble button visible on mobile (will auto-open after 6s) */
   .homesfy-widget__bubble-button {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+  
+  /* Hide bubble when chat window is open (fullscreen on mobile) */
+  .homesfy-widget--open .homesfy-widget__bubble-button {
     display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
   }
 
   .homesfy-widget__bubble-text,

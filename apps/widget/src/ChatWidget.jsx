@@ -422,6 +422,40 @@ export function ChatWidget({
     resolvedTheme.avatarUrl || DEFAULT_AVATAR_URL
   );
 
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 960);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Staggered CTA button visibility for mobile
+  const [visibleCtaCount, setVisibleCtaCount] = useState(0);
+  useEffect(() => {
+    if (isOpen && !selectedCta && isMobile) {
+      // Reset when chat opens
+      setVisibleCtaCount(0);
+      // Show first CTA after 300ms (agent message appears first)
+      const timer1 = setTimeout(() => setVisibleCtaCount(1), 300);
+      // Then show remaining CTAs one by one with 150ms delay between each
+      const timers = [];
+      for (let i = 2; i <= ctaOptions.length; i++) {
+        timers.push(setTimeout(() => setVisibleCtaCount(i), 300 + (i - 1) * 150));
+      }
+      return () => {
+        clearTimeout(timer1);
+        timers.forEach(t => clearTimeout(t));
+      };
+    } else if (!isMobile || selectedCta) {
+      // On desktop or after CTA selected, show all immediately
+      setVisibleCtaCount(ctaOptions.length);
+    }
+  }, [isOpen, selectedCta, isMobile, ctaOptions.length]);
+
   useEffect(() => {
     const nextUrl = resolvedTheme.avatarUrl || DEFAULT_AVATAR_URL;
     setAvatarUrl(nextUrl);
@@ -522,10 +556,14 @@ export function ChatWidget({
       return undefined;
     }
 
-    const delay = Math.max(0, resolvedTheme.autoOpenDelayMs || 0);
+    // Mobile: auto-open after 6 seconds, Desktop: use configured delay
+    const isMobileView = window.innerWidth <= 960;
+    const delay = isMobileView 
+      ? 6000  // 6 seconds on mobile
+      : Math.max(0, resolvedTheme.autoOpenDelayMs || 0);
 
-    // Don't auto-open if delay is 0 or not set - let user click the bubble
-    // Only auto-open if explicitly set to a positive delay
+    // Don't auto-open if delay is 0 or not set (desktop only) - let user click the bubble
+    // On mobile, always auto-open after 6 seconds
     if (delay > 0) {
       autoOpenTimeoutRef.current = window.setTimeout(() => {
         openChatOnce();
@@ -1283,19 +1321,22 @@ export function ChatWidget({
             {/* Stage 1: CTA selection */}
             {!selectedCta && (
               <div className="homesfy-widget__cta-grid">
-                {ctaOptions.map((option) => (
-                  <button
-                    key={option}
-                    className="homesfy-widget__cta-button"
-                    style={{
-                      borderColor: resolvedTheme.primaryColor,
-                      color: resolvedTheme.primaryColor,
-                    }}
-                    onClick={() => handleCtaSelect(option)}
-                  >
-                    {option}
-                  </button>
-                ))}
+                {ctaOptions.map((option, index) => {
+                  const isVisible = !isMobile || index < visibleCtaCount;
+                  return (
+                    <button
+                      key={option}
+                      className={`homesfy-widget__cta-button ${isVisible ? 'homesfy-widget__cta-button--visible' : 'homesfy-widget__cta-button--hidden'}`}
+                      style={{
+                        borderColor: resolvedTheme.primaryColor,
+                        color: resolvedTheme.primaryColor,
+                      }}
+                      onClick={() => handleCtaSelect(option)}
+                    >
+                      {option}
+                    </button>
+                  );
+                })}
               </div>
             )}
 
