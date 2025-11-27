@@ -48,6 +48,57 @@ function extractRgbChannels(color) {
   return null;
 }
 
+// Format timestamp like WhatsApp
+function formatMessageTime(timestamp) {
+  if (!timestamp) return "";
+  
+  const now = new Date();
+  const msgDate = new Date(timestamp);
+  const diffMs = now - msgDate;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  // Format time (e.g., "10:30 AM")
+  const timeStr = msgDate.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  
+  // If less than 1 minute ago, show "Just now"
+  if (diffMins < 1) {
+    return "Just now";
+  }
+  
+  // If same day, show just time
+  const isToday = now.toDateString() === msgDate.toDateString();
+  if (isToday) {
+    return timeStr;
+  }
+  
+  // If yesterday, show "Yesterday 10:30 AM"
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = yesterday.toDateString() === msgDate.toDateString();
+  if (isYesterday) {
+    return `Yesterday ${timeStr}`;
+  }
+  
+  // If within last 7 days, show day name
+  if (diffDays < 7) {
+    const dayName = msgDate.toLocaleDateString("en-US", { weekday: "short" });
+    return `${dayName} ${timeStr}`;
+  }
+  
+  // Otherwise show date
+  const dateStr = msgDate.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+  return `${dateStr} ${timeStr}`;
+}
+
 function resolveAvatarUrl(raw) {
   if (raw === undefined) {
     return DEFAULT_AVATAR_URL;
@@ -1284,20 +1335,25 @@ export function ChatWidget({
                   <div
                     className={`homesfy-widget__bubble homesfy-widget__bubble--${message.type}`}
                   >
-                    {message.text.split("\n").map((line, idx) => {
-                      // Parse **bold** markdown and convert to <strong> tags
-                      const parts = line.split(/(\*\*[^*]+\*\*)/g);
-                      return (
-                        <span key={idx}>
-                          {parts.map((part, partIdx) => {
-                            if (part.startsWith('**') && part.endsWith('**')) {
-                              return <strong key={partIdx}>{part.slice(2, -2)}</strong>;
-                            }
-                            return <span key={partIdx}>{part}</span>;
-                          })}
-                        </span>
-                      );
-                    })}
+                    <div className="homesfy-widget__message-text">
+                      {message.text.split("\n").map((line, idx) => {
+                        // Parse **bold** markdown and convert to <strong> tags
+                        const parts = line.split(/(\*\*[^*]+\*\*)/g);
+                        return (
+                          <span key={idx}>
+                            {parts.map((part, partIdx) => {
+                              if (part.startsWith('**') && part.endsWith('**')) {
+                                return <strong key={partIdx}>{part.slice(2, -2)}</strong>;
+                              }
+                              return <span key={partIdx}>{part}</span>;
+                            })}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    <span className="homesfy-widget__message-time">
+                      {formatMessageTime(message.timestamp)}
+                    </span>
                   </div>
                 </div>
               );
@@ -1324,11 +1380,7 @@ export function ChatWidget({
               </div>
             )}
 
-            <div ref={messagesEndRef} />
-          </div>
-
-          <div className="homesfy-widget__input">
-            {/* Stage 1: CTA selection */}
+            {/* Stage 1: CTA selection - inside scrollable area */}
             {!selectedCta && (
               <div className="homesfy-widget__cta-grid">
                 {ctaOptions.map((option, index) => {
@@ -1340,6 +1392,7 @@ export function ChatWidget({
                       style={{
                         borderColor: resolvedTheme.primaryColor,
                         color: resolvedTheme.primaryColor,
+                        animationDelay: `${300 + index * 150}ms`,
                       }}
                       onClick={() => handleCtaSelect(option)}
                     >
@@ -1349,6 +1402,11 @@ export function ChatWidget({
                 })}
               </div>
             )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="homesfy-widget__input">
 
             {/* Stage 2: BHK selection */}
             {selectedCta && !selectedBhk && !isTyping && (

@@ -12,7 +12,7 @@
       "namePrompt": "Please enter your name and phone number",
       "phonePrompt": "Please enter your mobile number...",
       "thankYouMessage": "Thanks! Our expert will call you shortly 📞",
-      "bubblePosition": "bottom-right",
+      "bubblePosition": "bottom-left",
       "autoOpenDelayMs": 4000,
       "welcomeMessage": "Hello! 👋 Welcome to Homesfy\nHow can I assist you today?",
       "createdAt": "2025-11-07T17:15:11.270Z",
