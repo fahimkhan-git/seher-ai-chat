@@ -270,13 +270,20 @@ async function init(options = {}) {
 
   const themeOverrides = options.theme || {};
   
-  console.log("HomesfyChat: Fetching widget theme from API...");
+  // IMPORTANT: Use DEFAULT config for all microsites (not project-specific)
+  // Lead submission will use the actual projectId from embed script
+  const leadProjectId = projectId; // Actual project ID for lead submission
+  
+  console.log("HomesfyChat: Using DEFAULT widget config (same for all microsites)");
+  console.log("HomesfyChat: Lead submissions will use project ID:", leadProjectId);
+  
+  // Use default config - fetch from "default" project or use hardcoded defaults
   let remoteTheme = {};
   try {
-    remoteTheme = await fetchWidgetTheme(apiBaseUrl, projectId);
-    console.log("HomesfyChat: Widget theme fetched:", Object.keys(remoteTheme).length > 0 ? "Theme loaded" : "Using defaults");
+    remoteTheme = await fetchWidgetTheme(apiBaseUrl, "default");
+    console.log("HomesfyChat: Default widget config loaded:", Object.keys(remoteTheme).length > 0 ? "Config loaded" : "Using hardcoded defaults");
   } catch (error) {
-    console.warn("HomesfyChat: Failed to fetch widget theme, using defaults:", error);
+    console.warn("HomesfyChat: Failed to fetch default config, using hardcoded defaults:", error);
     remoteTheme = {};
   }
   
@@ -310,12 +317,12 @@ async function init(options = {}) {
     try {
       const widgetInstance = await mountWidget({
         apiBaseUrl,
-        projectId,
+        projectId: leadProjectId, // Pass actual project ID for lead submission
         microsite,
         theme,
         target: options.target,
       });
-      console.log("HomesfyChat: Widget mounted successfully");
+      console.log("HomesfyChat: Widget mounted successfully - Config from:", configProjectId, "| Leads will use:", leadProjectId);
       return widgetInstance;
     } catch (error) {
       console.error("HomesfyChat: Failed to mount widget:", error);

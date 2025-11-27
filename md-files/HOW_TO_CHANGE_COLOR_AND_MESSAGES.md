@@ -21,6 +21,20 @@ After updating, deploy:
 
 ---
 
+
+<!-- 
+# Edit the default config
+nano apps/api/data/widget-config.json
+
+# Find "projectId": "default" and update values
+# Then deploy
+./deploy.sh 'Update default widget config'
+
+./update-config-file.sh default
+ -->
+
+
+
 ## 📝 Manual Method
 
 ### Step 1: Edit the Config File

@@ -859,17 +859,27 @@ export function ChatWidget({
         }
       }
 
-      // Get project ID from URL params, data attribute, or use projectId prop
+      // Get project ID for lead submission - ALWAYS use projectId prop (from data-project attribute)
+      // This ensures each microsite's leads are sent to CRM with the correct project ID
+      // NOTE: Widget config is shared, but leads use the actual project ID from embed script
       const urlParams = new URLSearchParams(window.location.search);
       const projectIdFromUrl = urlParams.get("project_id") || urlParams.get("projectId");
-      // Check for data attribute on script tag
+      // Check for data attribute on script tag as fallback
       const scriptElement = document.currentScript || 
         document.querySelector('script[data-project]') ||
         document.querySelector('script[data-project-id]') ||
         document.querySelector('script[src*="widget.js"]');
       const projectIdFromData = scriptElement?.dataset?.project || scriptElement?.dataset?.projectId;
-      // Use projectId prop (which comes from data-project attribute) or fallback to 5796
-      const finalProjectId = projectIdFromUrl || projectIdFromData || projectId || "5796";
+      // CRITICAL: Use projectId prop FIRST (from embed script data-project attribute)
+      // This is the project ID that will be sent to CRM with the lead
+      const finalProjectId = projectId || projectIdFromUrl || projectIdFromData || "5796";
+      
+      console.log("HomesfyChat: Lead submission - Using project ID for CRM:", finalProjectId, "Source:", {
+        fromProp: projectId,
+        fromUrl: projectIdFromUrl,
+        fromData: projectIdFromData,
+        final: finalProjectId
+      });
 
       // Get magnet_id from URL if present
       const magnetId = urlParams.get("magnet_id");
@@ -933,7 +943,7 @@ export function ChatWidget({
         tracking_lead_id: magnetId || `chat-${Date.now()}`,
         nationality: nationality,
         source_id: magnetId ? 49 : 31, // 49 for magnet campaigns, 31 for regular chat widget leads
-        project_id: Number(finalProjectId) || Number(projectId) || 5796, // Ensure it's a number
+        project_id: Number(finalProjectId) || Number(projectId) || 5796, // Use project ID from embed script (data-project attribute)
         Digital: {
           user_device: deviceInfo,
           user_browser: browserInfo,
