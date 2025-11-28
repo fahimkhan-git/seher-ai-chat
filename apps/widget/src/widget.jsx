@@ -9,6 +9,23 @@ import { detectPropertyFromPage } from "./propertyDetector.js";
 const WIDGET_INSTANCE_KEY = "default-widget-instance";
 const mountedWidgets = new Map();
 
+// Global state store to preserve widget state across re-renders
+// This prevents state loss when root.render() is called
+const widgetStateStore = {
+  isOpen: false,
+  isIntentionallyOpen: false,
+  lastOpenTime: 0,
+  hasShown: false,
+  messages: [],
+  selectedCta: null,
+  selectedBhk: null,
+  currentStage: "cta",
+  userName: "",
+  nameSubmitted: false,
+  phoneSubmitted: false,
+  componentMountId: null,
+};
+
 // Get env API URL, but ignore it if it's localhost and we're on HTTPS
 const rawEnvApiBaseUrl =
   typeof import.meta !== "undefined" && import.meta.env
@@ -33,9 +50,9 @@ const envDefaultProjectId =
     : undefined;
 
 // Cache for widget theme to prevent repeated fetches
-// Very short cache (10 seconds) to ensure widget always gets latest config
+// Very short cache (5 seconds) to ensure widget always gets latest config
 const themeCache = new Map();
-const CACHE_DURATION_MS = 10 * 1000; // 10 seconds (ensures latest config while preventing excessive requests)
+const CACHE_DURATION_MS = 5 * 1000; // 5 seconds (ensures latest config while preventing excessive requests)
 
 // Function to clear cache (useful for forcing fresh config)
 function clearThemeCache() {
@@ -164,7 +181,7 @@ async function mountWidget({
   // Project ID is only used for lead submission (different projects = different CRM entries)
   if (mountedWidgets.has(WIDGET_INSTANCE_KEY)) {
     const existingInstance = mountedWidgets.get(WIDGET_INSTANCE_KEY);
-    console.log("HomesfyChat: Widget already mounted - updating project ID for lead submission:", projectId);
+    console.log("HomesfyChat: Widget already mounted - skipping mount, updating project ID for lead submission:", projectId);
     // Update theme if it changed (but don't remount)
     if (existingInstance.updateTheme && theme) {
       existingInstance.updateTheme(theme);
@@ -174,6 +191,24 @@ async function mountWidget({
       existingInstance.updateProjectId(projectId);
     }
     return existingInstance;
+  }
+  
+  // CRITICAL: Double-check if widget host already exists in DOM
+  // This prevents duplicate mounts even if mountedWidgets map is cleared
+  const existingHost = document.querySelector('[data-homesfy-widget-host="true"]');
+  if (existingHost) {
+    console.log("HomesfyChat: Widget host element already exists in DOM - preventing duplicate mount");
+    // Try to get existing instance or create a dummy one
+    if (mountedWidgets.has(WIDGET_INSTANCE_KEY)) {
+      return mountedWidgets.get(WIDGET_INSTANCE_KEY);
+    }
+    // If no instance but host exists, something went wrong - don't mount again
+    console.error("HomesfyChat: Widget host exists but no instance found - this should not happen");
+    return {
+      destroy: () => {},
+      updateTheme: () => {},
+      updateProjectId: () => {},
+    };
   }
 
   const host = target ?? document.createElement("div");
@@ -251,6 +286,7 @@ async function mountWidget({
   };
 
   // Initial render - use stable key that doesn't depend on projectId
+  // Pass preserved state to widget to restore state across re-renders
   root.render(
     <ChatWidget
       key={WIDGET_INSTANCE_KEY} // Stable key - same for all project IDs
@@ -259,6 +295,7 @@ async function mountWidget({
       microsite={microsite}
       theme={theme}
       onEvent={eventDispatcher}
+      preservedState={widgetStateStore} // Pass preserved state
     />
   );
 
@@ -273,6 +310,7 @@ async function mountWidget({
       if (newTheme && JSON.stringify(newTheme) !== JSON.stringify(currentProps.theme)) {
         console.log("HomesfyChat: Updating widget theme without remounting");
         currentProps.theme = newTheme;
+        // Preserve state when re-rendering
         root.render(
           <ChatWidget
             key={WIDGET_INSTANCE_KEY}
@@ -281,6 +319,7 @@ async function mountWidget({
             microsite={currentProps.microsite}
             theme={newTheme}
             onEvent={currentProps.onEvent}
+            preservedState={widgetStateStore} // Pass preserved state
           />
         );
       } else {
@@ -294,6 +333,7 @@ async function mountWidget({
         console.log("HomesfyChat: Updating project ID for lead submission:", newProjectId);
         currentProps.projectId = newProjectId;
         // Re-render with new projectId (only affects lead submission, widget design stays the same)
+        // Preserve state when re-rendering
         root.render(
           <ChatWidget
             key={WIDGET_INSTANCE_KEY}
@@ -302,6 +342,7 @@ async function mountWidget({
             microsite={currentProps.microsite}
             theme={currentProps.theme}
             onEvent={currentProps.onEvent}
+            preservedState={widgetStateStore} // Pass preserved state
           />
         );
       }
@@ -321,8 +362,48 @@ async function mountWidget({
   return instance;
 }
 
+// Global flag to prevent multiple init calls
+let initInProgress = false;
+
 async function init(options = {}) {
   try {
+    // CRITICAL: Check if widget is already mounted FIRST, before any async operations
+    // This prevents multiple initializations that could cause remounts
+    if (mountedWidgets.has(WIDGET_INSTANCE_KEY)) {
+      const existingInstance = mountedWidgets.get(WIDGET_INSTANCE_KEY);
+      console.log("HomesfyChat: Widget already initialized - skipping re-initialization to prevent reloads");
+      const scriptElement = options.element || document.currentScript;
+      const projectId =
+        options.projectId ||
+        scriptElement?.dataset.project ||
+        scriptElement?.dataset.projectId ||
+        scriptElement?.getAttribute('data-project') ||
+        scriptElement?.getAttribute('data-project-id') ||
+        envDefaultProjectId ||
+        "default";
+      // Update projectId in existing instance for lead submission (if changed)
+      if (existingInstance.updateProjectId && projectId) {
+        existingInstance.updateProjectId(projectId);
+      }
+      return existingInstance;
+    }
+    
+    // CRITICAL: Prevent concurrent init calls
+    if (initInProgress) {
+      console.log("HomesfyChat: Init already in progress, skipping duplicate call to prevent reloads");
+      // Wait for the existing init to complete
+      while (initInProgress) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      // After waiting, check if widget was mounted
+      if (mountedWidgets.has(WIDGET_INSTANCE_KEY)) {
+        return mountedWidgets.get(WIDGET_INSTANCE_KEY);
+      }
+    }
+    
+    // Mark init as in progress
+    initInProgress = true;
+    
     const scriptElement = options.element || document.currentScript;
     
     // Extract project ID from script element (data-project attribute)
@@ -336,18 +417,6 @@ async function init(options = {}) {
       scriptElement?.getAttribute('data-project-id') ||
       envDefaultProjectId ||
       "default";
-    
-    // CRITICAL: Check if widget is already mounted (single instance for all project IDs)
-    // This prevents multiple initializations that could cause remounts
-    if (mountedWidgets.has(WIDGET_INSTANCE_KEY)) {
-      const existingInstance = mountedWidgets.get(WIDGET_INSTANCE_KEY);
-      console.log("HomesfyChat: Widget already initialized - updating project ID for lead submission:", projectId);
-      // Update projectId in existing instance for lead submission
-      if (existingInstance.updateProjectId) {
-        existingInstance.updateProjectId(projectId);
-      }
-      return existingInstance;
-    }
     
     // Ensure DOM is ready
     if (document.readyState === 'loading') {
@@ -444,8 +513,12 @@ async function init(options = {}) {
     if (Object.keys(remoteTheme).length > 0) {
       console.log("HomesfyChat: ✅ Latest widget config loaded successfully from server");
       console.log("HomesfyChat: 📋 Config keys:", Object.keys(remoteTheme).join(', '));
+      console.log("HomesfyChat: 👤 Agent Name:", remoteTheme.agentName || "NOT SET");
+      console.log("HomesfyChat: 🎨 Primary Color:", remoteTheme.primaryColor || "NOT SET");
+      console.log("HomesfyChat: 💬 Welcome Message:", remoteTheme.welcomeMessage?.substring(0, 50) || "NOT SET");
     } else {
       console.log("HomesfyChat: ⚠️ Using hardcoded default config (no remote config found)");
+      console.log("HomesfyChat: 💡 Make sure API server is running and config file exists");
     }
   } catch (error) {
     console.warn("HomesfyChat: ⚠️ Failed to fetch latest config, using hardcoded defaults:", error);
@@ -478,6 +551,14 @@ async function init(options = {}) {
       ? detectedPropertyInfo 
       : (remoteTheme?.propertyInfo || {})
   };
+  
+  // Debug: Log final theme being used
+  console.log("HomesfyChat: 🎨 Final theme being used:", {
+    agentName: theme.agentName || "NOT SET (will use fallback)",
+    primaryColor: theme.primaryColor || "NOT SET (will use fallback)",
+    bubblePosition: theme.bubblePosition || "NOT SET (will use fallback)",
+    hasWelcomeMessage: !!theme.welcomeMessage
+  });
 
     console.log("HomesfyChat: Mounting widget...");
     try {
@@ -520,11 +601,15 @@ async function init(options = {}) {
         }
       }, 500);
       
+      // Mark init as complete
+      initInProgress = false;
       return widgetInstance;
     } catch (error) {
       console.error("HomesfyChat: Failed to mount widget:", error);
       // Don't throw - log error but allow page to continue
       console.warn("HomesfyChat: Widget initialization failed, but page will continue to function");
+      // Mark init as complete even on error
+      initInProgress = false;
       // Return a dummy instance to prevent further errors
       return {
         destroy: () => {}
@@ -532,6 +617,8 @@ async function init(options = {}) {
     }
   } catch (initError) {
     console.error("HomesfyChat: Critical error during initialization:", initError);
+    // Mark init as complete even on error
+    initInProgress = false;
     // Return a dummy instance to prevent further errors
     return {
       destroy: () => {}
@@ -550,7 +637,19 @@ const HomesfyChat = {
 };
 
 if (typeof window !== "undefined") {
-  window.HomesfyChat = HomesfyChat;
+  // CRITICAL: Prevent script from running multiple times
+  // Check if script has already been executed
+  if (window.__HomesfyChatScriptExecuted) {
+    console.log("HomesfyChat: Script already executed, skipping to prevent duplicate initialization");
+    // Still expose the API in case it's needed
+    if (!window.HomesfyChat) {
+      window.HomesfyChat = HomesfyChat;
+    }
+  } else {
+    // Mark script as executed
+    window.__HomesfyChatScriptExecuted = true;
+    
+    window.HomesfyChat = HomesfyChat;
   
   // Debug: Log that widget script has loaded
   console.log("HomesfyChat: Widget script loaded successfully");
@@ -608,7 +707,24 @@ if (typeof window !== "undefined") {
   
   // Auto-initialize widget
   const initializeWidget = () => {
+    // CRITICAL: Prevent multiple initializations - check BOTH flags
     if (window.HomesfyChatInitialized) {
+      console.log("HomesfyChat: Already initialized (flag set), skipping to prevent reloads");
+      return;
+    }
+    
+    // Also check if widget is already mounted - this is the most reliable check
+    if (mountedWidgets.has(WIDGET_INSTANCE_KEY)) {
+      console.log("HomesfyChat: Widget already mounted, skipping initialization to prevent reloads");
+      window.HomesfyChatInitialized = true;
+      return;
+    }
+    
+    // Check if widget host element already exists in DOM
+    const existingHost = document.querySelector('[data-homesfy-widget-host="true"]');
+    if (existingHost) {
+      console.log("HomesfyChat: Widget host element already exists in DOM, skipping initialization to prevent reloads");
+      window.HomesfyChatInitialized = true;
       return;
     }
     
@@ -672,6 +788,15 @@ if (typeof window !== "undefined") {
         apiBaseUrl: options.apiBaseUrl || "Not found (will use default)",
         microsite: options.microsite 
       });
+      
+      // CRITICAL: Final check before calling init
+      if (mountedWidgets.has(WIDGET_INSTANCE_KEY) || 
+          document.querySelector('[data-homesfy-widget-host="true"]')) {
+        console.log("HomesfyChat: Widget already exists, skipping init call to prevent reloads");
+        window.HomesfyChatInitialized = true;
+        return;
+      }
+      
       console.log("HomesfyChat: Initializing widget...");
       init(options).then((instance) => {
         if (instance && typeof instance.destroy === 'function') {
@@ -735,21 +860,39 @@ if (typeof window !== "undefined") {
     }
   };
   
-  // Start initialization
-  tryInitialize();
-  
-  // Also try on window load as a fallback (for async scripts that load late)
-  if (typeof window !== 'undefined') {
-    window.addEventListener('load', () => {
-      if (!window.HomesfyChatInitialized) {
-        console.log("HomesfyChat: Window loaded, retrying initialization...");
-        setTimeout(() => {
-          if (!window.HomesfyChatInitialized) {
-            initializeWidget();
-          }
-        }, 100);
-      }
-    }, { once: true });
+  // CRITICAL: Only initialize if not already initialized
+  // Check multiple conditions to prevent duplicate initialization
+  if (!window.HomesfyChatInitialized && 
+      !mountedWidgets.has(WIDGET_INSTANCE_KEY) &&
+      !document.querySelector('[data-homesfy-widget-host="true"]')) {
+    // Start initialization
+    tryInitialize();
+    
+    // Also try on window load as a fallback (for async scripts that load late)
+    // But only if still not initialized
+    if (typeof window !== 'undefined') {
+      window.addEventListener('load', () => {
+        if (!window.HomesfyChatInitialized && 
+            !mountedWidgets.has(WIDGET_INSTANCE_KEY) &&
+            !document.querySelector('[data-homesfy-widget-host="true"]')) {
+          console.log("HomesfyChat: Window loaded, retrying initialization...");
+          setTimeout(() => {
+            if (!window.HomesfyChatInitialized && 
+                !mountedWidgets.has(WIDGET_INSTANCE_KEY) &&
+                !document.querySelector('[data-homesfy-widget-host="true"]')) {
+              initializeWidget();
+            } else {
+              console.log("HomesfyChat: Widget already initialized on window load, skipping");
+            }
+          }, 100);
+        } else {
+          console.log("HomesfyChat: Widget already initialized, skipping window load handler");
+        }
+      }, { once: true });
+    }
+  } else {
+    console.log("HomesfyChat: Widget already initialized or mounted, skipping auto-init");
+  }
   }
 }
 

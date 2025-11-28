@@ -406,33 +406,34 @@ export function ChatWidget({
   
   // Protected setIsOpen that prevents accidental closes
   const setIsOpen = useCallback((value, force = false) => {
-    // Prevent unnecessary state updates if value hasn't changed
-    // Use ref to check current value (avoids stale closure issues)
-    if (isOpenRef.current === value) {
-      return;
-    }
-    
-    if (value === false && !force) {
-      // CRITICAL: If widget is intentionally open, prevent ALL closes except user-initiated ones
-      if (isIntentionallyOpenRef.current) {
-        const timeSinceOpen = Date.now() - lastOpenTimeRef.current;
-        // Only allow close if it's been open for more than 2 seconds (gives time for state to stabilize)
-        if (timeSinceOpen < 2000) {
-          console.warn("HomesfyChat: ⚠️ BLOCKED close attempt - widget was intentionally open. Mount ID:", componentMountIdRef.current, "Time since open:", timeSinceOpen, "ms");
-          return; // Block the close
-        }
-      }
-      // If closing is allowed, reset the flag
-      isIntentionallyOpenRef.current = false;
-    } else if (value === true) {
+    // CRITICAL: When opening (value === true), always update regardless of current state
+    // This ensures the widget opens even if there's a state sync issue
+    if (value === true) {
       // Mark as intentionally open when opening
       isIntentionallyOpenRef.current = true;
       lastOpenTimeRef.current = Date.now();
-      console.log("HomesfyChat: Widget marked as intentionally open - Mount ID:", componentMountIdRef.current);
+      isOpenRef.current = true;
+      setIsOpenState(true); // Always set state when opening
+      console.log("HomesfyChat: Widget opened - Mount ID:", componentMountIdRef.current);
+      return;
     }
-    // Update ref first, then state
-    isOpenRef.current = value;
-    setIsOpenState(value);
+    
+    // For closing (value === false)
+    // Check if we should block the close
+    if (!force && isIntentionallyOpenRef.current) {
+      const timeSinceOpen = Date.now() - lastOpenTimeRef.current;
+      // Only allow close if it's been open for more than 2 seconds (gives time for state to stabilize)
+      if (timeSinceOpen < 2000) {
+        console.warn("HomesfyChat: ⚠️ BLOCKED close attempt - widget was intentionally open. Mount ID:", componentMountIdRef.current, "Time since open:", timeSinceOpen, "ms");
+        return; // Block the close
+      }
+    }
+    
+    // Close is allowed - update state
+    isIntentionallyOpenRef.current = false;
+    isOpenRef.current = false;
+    setIsOpenState(false);
+    console.log("HomesfyChat: Widget closed - Mount ID:", componentMountIdRef.current);
   }, []); // Empty deps - use refs for current values, not state (refs are stable)
   
   // Sync ref with state (but don't override if ref says it should be open)
