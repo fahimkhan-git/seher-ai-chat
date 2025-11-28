@@ -74,6 +74,18 @@ const FILE_NAME = "widget-config.json";
 const DEFAULT_STORE = { configs: [] };
 
 async function loadStore() {
+  // In local development, always reload from file to see changes immediately
+  // On Vercel, use cached version for performance
+  if (!process.env.VERCEL && process.env.NODE_ENV !== 'production') {
+    // Local development: reload file on every request to see changes immediately
+    const freshConfig = loadConfigFile();
+    if (freshConfig) {
+      widgetConfigData = freshConfig;
+      console.log("🔄 Local dev: Reloaded config from file (changes will appear immediately)");
+      return freshConfig;
+    }
+  }
+  
   // If we have the config data loaded, use it (works on both Vercel and local)
   if (widgetConfigData) {
     return widgetConfigData;
@@ -152,33 +164,45 @@ const lastLogTime = new Map();
 const LOG_INTERVAL_MS = 60000; // Only log once per minute per projectId
 
 export async function getWidgetConfig(projectId) {
-  // Check cache first
-  if (configCache.has(projectId)) {
-    return configCache.get(projectId);
+  // In local development, always reload from file (don't use cache)
+  // This ensures config changes appear immediately
+  if (!process.env.VERCEL && process.env.NODE_ENV !== 'production') {
+    // Clear cache for this projectId to force fresh load
+    configCache.delete(projectId);
+  } else {
+    // In production, check cache first
+    if (configCache.has(projectId)) {
+      return configCache.get(projectId);
+    }
   }
   
   const store = await loadStore();
   
   // Log store contents for debugging (only occasionally)
-  const now = Date.now();
+  const currentTime = Date.now();
   const lastLog = lastLogTime.get(projectId) || 0;
-  const shouldLog = (now - lastLog) > LOG_INTERVAL_MS;
+  const shouldLog = (currentTime - lastLog) > LOG_INTERVAL_MS;
   
   if (process.env.VERCEL && shouldLog) {
     console.log(`📁 Store loaded: ${store.configs?.length || 0} configs found`);
     console.log(`📁 Looking for projectId: ${projectId}`);
-    lastLogTime.set(projectId, now);
+    lastLogTime.set(projectId, currentTime);
   }
   
   const existing = store.configs.find((item) => item.projectId === projectId);
 
   if (existing) {
     // Only log occasionally to reduce console spam
-    if (shouldLog) {
+    if (shouldLog || (!process.env.VERCEL && process.env.NODE_ENV !== 'production')) {
       console.log(`✅ Found config for projectId: ${projectId}`);
+      if (!process.env.VERCEL && process.env.NODE_ENV !== 'production') {
+        console.log(`📋 Config details: agentName="${existing.agentName}", primaryColor="${existing.primaryColor}"`);
+      }
     }
-    // Cache the result
-    configCache.set(projectId, existing);
+    // Cache the result (only in production, local dev always reloads)
+    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+      configCache.set(projectId, existing);
+    }
     return existing;
   }
   
@@ -186,13 +210,13 @@ export async function getWidgetConfig(projectId) {
     console.log(`⚠️  Config not found for projectId: ${projectId}, creating default`);
   }
 
-  const now = new Date().toISOString();
+  const timestamp = new Date().toISOString();
   const config = {
     id: crypto.randomUUID(),
     projectId,
     ...DEFAULT_THEME,
-    createdAt: now,
-    updatedAt: now,
+    createdAt: timestamp,
+    updatedAt: timestamp,
   };
 
   store.configs.push(config);
@@ -205,7 +229,7 @@ export async function getWidgetConfig(projectId) {
 export async function upsertWidgetConfig(projectId, update) {
   const sanitizedUpdate = sanitizeUpdate(update);
   const store = await loadStore();
-  const now = new Date().toISOString();
+  const timestamp = new Date().toISOString();
   const index = store.configs.findIndex((item) => item.projectId === projectId);
 
   if (index === -1) {
@@ -214,8 +238,8 @@ export async function upsertWidgetConfig(projectId, update) {
       projectId,
       ...DEFAULT_THEME,
       ...sanitizedUpdate,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: timestamp,
+      updatedAt: timestamp,
     };
     store.configs.push(config);
     await saveStore(store);
@@ -228,7 +252,7 @@ export async function upsertWidgetConfig(projectId, update) {
     ...store.configs[index],
     ...sanitizedUpdate,
     projectId,
-    updatedAt: now,
+    updatedAt: timestamp,
   };
 
   store.configs[index] = updated;

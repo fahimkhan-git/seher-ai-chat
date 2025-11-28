@@ -14,7 +14,7 @@
       "thankYouMessage": "Thanks! Our expert will call you shortly 📞",
       "bubblePosition": "bottom-left",
       "autoOpenDelayMs": 4000,
-      "welcomeMessage": "Hello! 👋 Welcome to Homesfy\nHow can I assist you today?",
+      "welcomeMessage": "Hey, I'm Ziya from Homesfy! How can I help you understand this project?",
       "createdAt": "2025-11-07T17:15:11.270Z",
       "updatedAt": "2025-11-26T17:22:56.314Z",
       "propertyInfo": {
@@ -45,44 +45,6 @@
         "possession": "Possession, No Bank Loan Required",
         "specialOffers": "Pay 20% Now & Rest on Possession, No Bank Loan Required"
       }
-    },
-    {
-      "id": "6cdde3dd-09a5-4100-8e89-8e2aa5423b89",
-      "projectId": "5796",
-      "agentName": "Ziya from Homesfy",
-      "avatarUrl": "https://v2assets.zopim.io/2F4uasrDz8AwB7cxrCz3igHZtZovK0w4-concierge?1759235162633",
-      "primaryColor": "#10c577",
-      "followupMessage": "Sure… I'll send that across right away!",
-      "bhkPrompt": "Which configuration you are looking for?",
-      "inventoryMessage": "That's cool… we have inventory available with us.",
-      "namePrompt": "Please enter your name and phone number",
-      "phonePrompt": "Please enter your mobile number...",
-      "thankYouMessage": "Thanks! Our expert will call you shortly 📞",
-      "bubblePosition": "bottom-right",
-      "autoOpenDelayMs": 4000,
-      "welcomeMessage": "Hello! 👋 Welcome to Homesfy\nHow can I assist you today?",
-      "createdAt": "2025-11-21T06:56:08.718Z",
-      "updatedAt": "2025-11-28T10:17:25.896Z",
-      "propertyInfo": {
-        "projectName": "Homesfy Widget Local Test"
-      }
-    },
-    {
-      "id": "0e6045ea-3ca2-4f94-99a9-5a71a6326879",
-      "projectId": "test-project-id",
-      "agentName": "Ziya from Homesfy",
-      "avatarUrl": "https://v2assets.zopim.io/2F4uasrDz8AwB7cxrCz3igHZtZovK0w4-concierge?1759235162633",
-      "primaryColor": "#049B5A",
-      "followupMessage": "Sure… I’ll send that across right away!",
-      "bhkPrompt": "Which configuration you are looking for?",
-      "inventoryMessage": "That’s cool… we have inventory available with us.",
-      "phonePrompt": "Please enter your mobile number...",
-      "thankYouMessage": "Thanks! Our expert will call you shortly 📞",
-      "bubblePosition": "bottom-right",
-      "autoOpenDelayMs": 4000,
-      "welcomeMessage": "Hi, I’m Ziya from Homesfy 👋\nHow can I help you today?",
-      "createdAt": "2025-11-25T07:34:08.120Z",
-      "updatedAt": "2025-11-25T07:34:08.120Z"
     }
   ]
 }
