@@ -512,6 +512,10 @@ const HomesfyChat = {
 
 if (typeof window !== "undefined") {
   window.HomesfyChat = HomesfyChat;
+  
+  // Debug: Log that widget script has loaded
+  console.log("HomesfyChat: Widget script loaded successfully");
+  console.log("HomesfyChat: Version info - Auto-init enabled, manual init available via window.HomesfyChat.init()");
 
   // Auto-init when script loads (unless explicitly disabled)
   // Find script element - handle both sync and async scripts
@@ -521,9 +525,21 @@ if (typeof window !== "undefined") {
     
     // If currentScript is null (async script), find the script by src
     if (!scriptElement) {
-      const scripts = document.querySelectorAll('script[src*="widget.js"]');
-      // Get the last one (most likely the one that just loaded)
-      scriptElement = scripts.length > 0 ? scripts[scripts.length - 1] : null;
+      // Try multiple strategies to find the script element
+      // Strategy 1: Find by exact src match (most reliable)
+      const widgetScripts = Array.from(document.querySelectorAll('script[src*="widget.js"]'));
+      if (widgetScripts.length > 0) {
+        // For async scripts, the one that's loading/loaded is usually the last one
+        // But also check if any have data-project attribute to be more specific
+        scriptElement = widgetScripts.find(s => s.hasAttribute('data-project') || s.hasAttribute('data-api-base-url')) 
+                     || widgetScripts[widgetScripts.length - 1];
+      }
+      
+      // Strategy 2: If still not found, try finding by data attributes
+      if (!scriptElement) {
+        scriptElement = document.querySelector('script[data-project][src*="widget.js"]') ||
+                       document.querySelector('script[data-api-base-url][src*="widget.js"]');
+      }
     }
     
     return scriptElement;
@@ -560,12 +576,27 @@ if (typeof window !== "undefined") {
     const check = shouldAutoInit();
     
     if (!check.shouldInit) {
-      console.log("HomesfyChat: Auto-init skipped", {
+      const reason = !check.hasProject && !check.hasApiUrl 
+        ? "Missing required attributes (data-project or data-api-base-url)"
+        : window.HomesfyChatInitialized 
+        ? "Already initialized"
+        : "Auto-init disabled";
+      
+      console.warn("HomesfyChat: Auto-init skipped -", reason, {
         initialized: window.HomesfyChatInitialized,
         hasProject: check.hasProject,
         hasApiUrl: check.hasApiUrl,
-        scriptElement: check.scriptElement
+        scriptElement: !!check.scriptElement,
+        scriptSrc: check.scriptElement?.src
       });
+      
+      // If script element exists but missing attributes, log helpful message
+      if (check.scriptElement && !check.hasProject && !check.hasApiUrl) {
+        console.error("HomesfyChat: ❌ Script tag found but missing required attributes!");
+        console.error("HomesfyChat: Required: data-project or data-api-base-url");
+        console.error("HomesfyChat: Current script:", check.scriptElement.outerHTML.substring(0, 200));
+      }
+      
       return;
     }
     
@@ -609,11 +640,13 @@ if (typeof window !== "undefined") {
           window.HomesfyChatInitialized = true;
         } else {
           console.warn("HomesfyChat: ⚠️ Widget initialized but instance is invalid");
+          console.warn("HomesfyChat: 💡 Try manually: window.HomesfyChat.init({ projectId: '5717', apiBaseUrl: 'https://api-three-pearl.vercel.app', microsite: 'www.navi-mumbai-properties.com' })");
           window.HomesfyChatInitialized = true; // Still mark as initialized to prevent retry loops
         }
       }).catch((error) => {
         console.error("HomesfyChat: ❌ Initialization error:", error);
         console.error("HomesfyChat: Error stack:", error.stack);
+        console.error("HomesfyChat: 💡 Try manually: window.HomesfyChat.init({ projectId: '5717', apiBaseUrl: 'https://api-three-pearl.vercel.app', microsite: 'www.navi-mumbai-properties.com' })");
         // Mark as initialized to prevent infinite retry loops
         window.HomesfyChatInitialized = true;
       });
@@ -624,28 +657,61 @@ if (typeof window !== "undefined") {
     }
   };
   
-  // Try to initialize - with minimal retry logic for async scripts
+  // Try to initialize - with retry logic for async scripts
   const tryInitialize = () => {
     // Check if already initialized
     if (window.HomesfyChatInitialized) {
       return;
     }
     
+    const attemptInit = () => {
+      // Check if script element exists now
+      const scriptElement = findScriptElement();
+      if (!scriptElement && document.readyState !== 'complete') {
+        // Script might not be in DOM yet, wait a bit more
+        return false;
+      }
+      
+      initializeWidget();
+      return true;
+    };
+    
     // Wait for DOM to be ready
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => {
-        setTimeout(initializeWidget, 100);
+        // Try immediately, then retry after a short delay if needed
+        if (!attemptInit()) {
+          setTimeout(() => attemptInit(), 200);
+        }
       }, { once: true });
+    } else if (document.readyState === "interactive") {
+      // DOM is loading but not complete - wait a bit
+      setTimeout(() => attemptInit(), 100);
     } else {
-      // DOM already loaded - try once
-      setTimeout(initializeWidget, 100);
+      // DOM is complete - try immediately
+      if (!attemptInit()) {
+        // If script element not found, retry once more after a delay
+        setTimeout(() => attemptInit(), 300);
+      }
     }
-    
-    // Removed retry logic to prevent multiple initialization attempts
-    // If initialization fails, it will be logged but won't retry automatically
   };
   
+  // Start initialization
   tryInitialize();
+  
+  // Also try on window load as a fallback (for async scripts that load late)
+  if (typeof window !== 'undefined') {
+    window.addEventListener('load', () => {
+      if (!window.HomesfyChatInitialized) {
+        console.log("HomesfyChat: Window loaded, retrying initialization...");
+        setTimeout(() => {
+          if (!window.HomesfyChatInitialized) {
+            initializeWidget();
+          }
+        }, 100);
+      }
+    }, { once: true });
+  }
 }
 
 export default HomesfyChat;
