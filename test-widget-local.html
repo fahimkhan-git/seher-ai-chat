@@ -21,30 +21,66 @@
 <body>
   <div class="info">
     <h1>🧪 Testing Widget Locally</h1>
-    <p><strong>Widget URL:</strong> http://localhost:5001/widget.js</p>
-    <p><strong>API URL:</strong> http://localhost:4000</p>
+    <p><strong>Widget URL:</strong> <span style="color: #6158ff;">http://localhost:5001/widget.js</span> (Local - for testing code changes)</p>
+    <p><strong>API URL:</strong> <span id="api-url" style="color: #28a745;">https://api-three-pearl.vercel.app</span> <button onclick="toggleApiUrl()" style="margin-left: 10px; padding: 5px 10px; cursor: pointer;">Switch to Local API</button></p>
     <p><strong>Project ID:</strong> 5796</p>
+    <p><strong>✅ Current Setup:</strong> Using <strong>local widget code</strong> with <strong>production API config</strong> (live config from Vercel)</p>
+    <p><strong>💡 Tip:</strong> Add <code>?widget_cache_bust=true</code> to URL to force fresh config</p>
+    <p><strong>💡 Tip:</strong> Use <code>HomesfyChatClearCache()</code> in console to clear config cache</p>
   </div>
 
   <h2>Test Page Content</h2>
   <p>This is a test page for the Homesfy chat widget.</p>
   <p>The widget should appear in the bottom-right corner.</p>
 
-  <!-- LOCAL WIDGET SCRIPT - Use this to test local changes -->
+  <script>
+    // Toggle between local and production API
+    let useLocalApi = false; // Start with production API (live config)
+    function toggleApiUrl() {
+      useLocalApi = !useLocalApi;
+      const apiUrl = useLocalApi ? 'http://localhost:4000' : 'https://api-three-pearl.vercel.app';
+      const buttonText = useLocalApi ? 'Switch to Production API' : 'Switch to Local API';
+      document.getElementById('api-url').textContent = apiUrl;
+      document.getElementById('api-url').style.color = useLocalApi ? '#ff6b6b' : '#28a745';
+      document.getElementById('widget-script').setAttribute('data-api-base-url', apiUrl);
+      document.querySelector('button').textContent = buttonText;
+      // Clear cache and reload page to reinitialize widget
+      if (window.HomesfyChatClearCache) {
+        window.HomesfyChatClearCache();
+      }
+      location.reload();
+    }
+  </script>
+
+  <!-- LOCAL WIDGET SCRIPT - Testing local widget code with PRODUCTION API config -->
   <!-- 
-    ✅ Latest changes:
-    - Name and phone fields appear together
-    - Submit button on right side
-    - No form-mode-indicator
+    ✅ This setup:
+    - Uses LOCAL widget.js (for testing code changes)
+    - Uses PRODUCTION API (to get live config from Vercel)
+    - Best of both: test widget code + use live config
+    
+    💡 To test with local API: Change data-api-base-url to "http://localhost:4000"
+    💡 To force fresh config: Add ?widget_cache_bust=true to URL
   -->
   <script
+    id="widget-script"
     src="http://localhost:5001/widget.js"
     data-project="5796"
-    data-api-base-url="http://localhost:4000"
+    data-api-base-url="https://api-three-pearl.vercel.app"
     data-microsite="microsite-1"
     async
   ></script>
-
+  
+  <!-- 
+    PRODUCTION WIDGET SCRIPT (commented out - use for production):
+    <script
+      src="https://widget-eight-ebon.vercel.app/widget.js"
+      data-project="5796"
+      data-api-base-url="https://api-three-pearl.vercel.app"
+      data-microsite="microsite-1"
+      async
+    ></script>
+  -->
   <!-- 
     PRODUCTION SCRIPT (commented out - use for production):
     <script

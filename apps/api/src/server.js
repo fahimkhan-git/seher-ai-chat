@@ -1,7 +1,6 @@
 import cors from "cors";
 import express from "express";
 import http from "http";
-import mongoose from "mongoose";
 import { Server as SocketIOServer } from "socket.io";
 import { config } from "./config.js";
 import leadsRouter from "./routes/leads.js";
@@ -39,10 +38,8 @@ function expandAllowedOrigins(origins) {
 }
 
 async function bootstrap() {
-  // MongoDB is NOT used - we use file-based storage only
-  // This prevents any MongoDB connection attempts
+  // Using file-based storage only
   console.log("📁 Using file-based storage (widget-config.json from git)");
-  console.log("   MongoDB connection skipped - not needed for widget config");
 
   const app = express();
   const expandedOrigins = config.allowedOrigins.includes("*")
@@ -151,16 +148,9 @@ async function bootstrap() {
   }
 
   app.get("/health", async (_req, res) => {
-    const aiAvailable = process.env.GEMINI_API_KEY && 
-                         process.env.GEMINI_API_KEY !== 'your-gemini-api-key-here' && 
-                         process.env.GEMINI_API_KEY.trim();
     res.json({ 
       status: "ok",
-      ai: {
-        available: !!aiAvailable,
-        model: aiAvailable ? "gemini-2.5-flash" : null,
-        mode: aiAvailable ? "full-ai" : "fallback-keyword-matching"
-      }
+      mode: "keyword-matching"
     });
   });
 
@@ -170,25 +160,7 @@ async function bootstrap() {
   app.use("/api/chat-sessions", chatSessionsRouter);
   app.use("/api/chat", chatRouter);
 
-  // Check Gemini AI availability on startup
-  const checkAIAvailability = async () => {
-    try {
-      if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your-gemini-api-key-here' && process.env.GEMINI_API_KEY.trim()) {
-        const { GoogleGenerativeAI } = await import("@google/generative-ai");
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        console.log("✅ Gemini AI (gemini-2.5-flash) is configured and available");
-        console.log("   Chat API will use full AI capabilities with intent understanding");
-      } else {
-        console.warn("⚠️  GEMINI_API_KEY not set - Chat API will use fallback keyword matching");
-        console.warn("   To enable full AI: Set GEMINI_API_KEY in .env (get key from https://makersuite.google.com/app/apikey)");
-      }
-    } catch (error) {
-      console.warn("⚠️  Could not verify Gemini AI availability:", error.message);
-    }
-  };
-  
-  checkAIAvailability();
+  console.log("✅ Chat API using keyword matching for responses");
 
   // Handle favicon requests
   app.get("/favicon.ico", (_req, res) => {

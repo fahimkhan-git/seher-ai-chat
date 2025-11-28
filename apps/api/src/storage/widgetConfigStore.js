@@ -1,7 +1,4 @@
 import crypto from "crypto";
-import { config } from "../config.js";
-import { WidgetConfig } from "../models/WidgetConfig.js";
-import { toPlainObject } from "../utils/doc.js";
 import { readJson, writeJson } from "./fileStore.js";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
@@ -63,7 +60,6 @@ widgetConfigData = loadConfigFile();
 
 const FILE_NAME = "widget-config.json";
 const DEFAULT_STORE = { configs: [] };
-const useMongo = config.dataStore === "mongo";
 
 async function loadStore() {
   // If we have the config data loaded, use it (works on both Vercel and local)
@@ -138,49 +134,45 @@ function sanitizeUpdate(update = {}) {
   return sanitized;
 }
 
+// Cache to prevent repeated lookups and excessive logging
+const configCache = new Map();
+const lastLogTime = new Map();
+const LOG_INTERVAL_MS = 60000; // Only log once per minute per projectId
+
 export async function getWidgetConfig(projectId) {
-  // Log which storage we're using
-  if (process.env.VERCEL && !useMongo) {
-    console.log(`📁 getWidgetConfig(${projectId}): Using FILE storage (MongoDB disabled)`);
+  // Check cache first
+  if (configCache.has(projectId)) {
+    return configCache.get(projectId);
   }
   
-  if (useMongo) {
-    let configDoc = await WidgetConfig.findOne({ projectId }).lean();
-
-    if (configDoc) {
-      const normalized = { ...configDoc, id: configDoc._id.toString() };
-      delete normalized._id;
-      delete normalized.__v;
-      return normalized;
-    }
-
-    const now = new Date().toISOString();
-    const created = await WidgetConfig.create({
-      projectId,
-      ...DEFAULT_THEME,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    return toPlainObject(created);
-  }
-
   const store = await loadStore();
   
-  // Log store contents for debugging
-  if (process.env.VERCEL) {
+  // Log store contents for debugging (only occasionally)
+  const now = Date.now();
+  const lastLog = lastLogTime.get(projectId) || 0;
+  const shouldLog = (now - lastLog) > LOG_INTERVAL_MS;
+  
+  if (process.env.VERCEL && shouldLog) {
     console.log(`📁 Store loaded: ${store.configs?.length || 0} configs found`);
     console.log(`📁 Looking for projectId: ${projectId}`);
+    lastLogTime.set(projectId, now);
   }
   
   const existing = store.configs.find((item) => item.projectId === projectId);
 
   if (existing) {
-    console.log(`✅ Found config for projectId: ${projectId}`);
+    // Only log occasionally to reduce console spam
+    if (shouldLog) {
+      console.log(`✅ Found config for projectId: ${projectId}`);
+    }
+    // Cache the result
+    configCache.set(projectId, existing);
     return existing;
   }
   
-  console.log(`⚠️  Config not found for projectId: ${projectId}, creating default`);
+  if (shouldLog) {
+    console.log(`⚠️  Config not found for projectId: ${projectId}, creating default`);
+  }
 
   const now = new Date().toISOString();
   const config = {
@@ -193,25 +185,13 @@ export async function getWidgetConfig(projectId) {
 
   store.configs.push(config);
   await saveStore(store);
+  // Cache the newly created config
+  configCache.set(projectId, config);
   return config;
 }
 
 export async function upsertWidgetConfig(projectId, update) {
   const sanitizedUpdate = sanitizeUpdate(update);
-
-  if (useMongo) {
-    let doc = await WidgetConfig.findOne({ projectId });
-
-    if (!doc) {
-      doc = new WidgetConfig({ projectId, ...DEFAULT_THEME });
-    }
-
-    Object.assign(doc, sanitizedUpdate, { projectId });
-    await doc.save();
-
-    return toPlainObject(doc);
-  }
-
   const store = await loadStore();
   const now = new Date().toISOString();
   const index = store.configs.findIndex((item) => item.projectId === projectId);
@@ -227,6 +207,8 @@ export async function upsertWidgetConfig(projectId, update) {
     };
     store.configs.push(config);
     await saveStore(store);
+    // Update cache
+    configCache.set(projectId, config);
     return config;
   }
 
@@ -239,6 +221,8 @@ export async function upsertWidgetConfig(projectId, update) {
 
   store.configs[index] = updated;
   await saveStore(store);
+  // Update cache
+  configCache.set(projectId, updated);
   return updated;
 }
 

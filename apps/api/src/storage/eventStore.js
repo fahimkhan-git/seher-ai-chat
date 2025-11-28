@@ -1,12 +1,8 @@
 import crypto from "crypto";
-import { config } from "../config.js";
-import { Event } from "../models/Event.js";
-import { toPlainObject } from "../utils/doc.js";
 import { readJson, writeJson } from "./fileStore.js";
 
 const FILE_NAME = "events.json";
 const DEFAULT_STORE = { events: [] };
-const useMongo = config.dataStore === "mongo";
 
 async function loadStore() {
   return readJson(FILE_NAME, DEFAULT_STORE);
@@ -17,17 +13,6 @@ async function saveStore(store) {
 }
 
 export async function recordEvent({ type, projectId, microsite, payload }) {
-  if (useMongo) {
-    const eventDoc = await Event.create({
-      type,
-      projectId,
-      microsite,
-      payload,
-    });
-
-    return toPlainObject(eventDoc);
-  }
-
   const now = new Date().toISOString();
   const event = {
     id: crypto.randomUUID(),
@@ -45,35 +30,6 @@ export async function recordEvent({ type, projectId, microsite, payload }) {
 }
 
 export async function getEventSummary() {
-  if (useMongo) {
-    const summary = {
-      chatsShown: 0,
-      chatsStarted: 0,
-      leadsCaptured: 0,
-    };
-
-    const results = await Event.aggregate([
-      {
-        $group: {
-          _id: "$type",
-          count: { $sum: 1 },
-        },
-      },
-    ]);
-
-    results.forEach((item) => {
-      if (item._id === "chat_shown") {
-        summary.chatsShown = item.count;
-      } else if (item._id === "chat_started") {
-        summary.chatsStarted = item.count;
-      } else if (item._id === "lead_submitted") {
-        summary.leadsCaptured = item.count;
-      }
-    });
-
-    return summary;
-  }
-
   const store = await loadStore();
 
   const summary = store.events.reduce(

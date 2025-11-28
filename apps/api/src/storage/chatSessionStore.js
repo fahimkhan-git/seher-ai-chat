@@ -1,12 +1,8 @@
 import crypto from "crypto";
-import { config } from "../config.js";
-import { ChatSession } from "../models/ChatSession.js";
-import { toPlainObject } from "../utils/doc.js";
 import { readJson, writeJson } from "./fileStore.js";
 
 const FILE_NAME = "chat-sessions.json";
 const DEFAULT_STORE = { sessions: [] };
-const useMongo = config.dataStore === "mongo";
 
 async function loadStore() {
   return readJson(FILE_NAME, DEFAULT_STORE);
@@ -25,20 +21,6 @@ export async function createChatSession({
   conversation = [],
   metadata = {},
 }) {
-  if (useMongo) {
-    const sessionDoc = await ChatSession.create({
-      microsite,
-      projectId: projectId || microsite,
-      leadId,
-      phone,
-      bhkType,
-      conversation,
-      metadata,
-    });
-
-    return toPlainObject(sessionDoc);
-  }
-
   const now = new Date().toISOString();
   const session = {
     id: crypto.randomUUID(),
@@ -66,36 +48,6 @@ export async function listChatSessions({
   limit = 50,
   skip = 0,
 } = {}) {
-  if (useMongo) {
-    const criteria = {};
-    if (microsite) {
-      criteria.microsite = microsite;
-    }
-    if (leadId) {
-      criteria.leadId = leadId;
-    }
-
-    const numericLimit = Math.max(Number(limit) || 0, 0) || 50;
-    const numericSkip = Math.max(Number(skip) || 0, 0);
-
-    const total = await ChatSession.countDocuments(criteria);
-    const items = await ChatSession.find(criteria)
-      .sort({ createdAt: -1 })
-      .skip(numericSkip)
-      .limit(numericLimit)
-      .lean();
-
-    return {
-      items: items.map((item) => {
-        const normalized = { ...item, id: item._id.toString() };
-        delete normalized._id;
-        delete normalized.__v;
-        return normalized;
-      }),
-      total,
-    };
-  }
-
   const store = await loadStore();
   let collection = store.sessions;
 

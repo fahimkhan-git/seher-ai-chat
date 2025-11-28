@@ -18,6 +18,7 @@ export default defineConfig({
     cors: {
       origin: "*",
     },
+    // Preview mode doesn't watch files by default - it only serves built files
   },
   build: {
     lib: {

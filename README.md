@@ -8,7 +8,7 @@ Full-stack workspace for the embeddable Homesfy chat widget, REST API, and inter
 
 | Path | Description |
 | --- | --- |
-| `apps/api` | Express API for leads, widget configuration, chat transcripts, and event tracking (optional MongoDB support). |
+| `apps/api` | Express API for leads, widget configuration, chat transcripts, and event tracking (file-based storage). |
 | `apps/widget` | React widget compiled into a single embeddable bundle (`widget.js`). |
 | `apps/dashboard` | React SPA for operations teams to review leads and tweak widget themes. |
 | `local-microsite` | Static HTML harness used to preview the widget bundle locally. |
@@ -17,8 +17,7 @@ Full-stack workspace for the embeddable Homesfy chat widget, REST API, and inter
 
 ## Prerequisites
 
-- **Node.js 20.x** (LTS) and npm 10.x  
-- Optional: **MongoDB** (local or Atlas) if you plan to use the Mongo datastore instead of the JSON file store.
+- **Node.js 20.x** (LTS) and npm 10.x
 
 ---
 
@@ -46,13 +45,12 @@ Key variables:
 | --- | --- | --- |
 | `API_PORT` | `apps/api/.env` | Port for the Express server (defaults to `4000`). |
 | `ALLOWED_ORIGINS` | `apps/api/.env` | Comma-separated CORS whitelist for the API + Socket.IO. |
-| `DATA_STORE` | `apps/api/.env` | `file` (default) or `mongo`. |
-| `DATA_DIRECTORY` | `apps/api/.env` | Directory used when `DATA_STORE=file` (defaults to `./data`). |
-| `MONGO_URI` | `apps/api/.env` | MongoDB URI when `DATA_STORE=mongo`. |
+| `DATA_DIRECTORY` | `apps/api/.env` | Directory used for file storage (defaults to `./data`). |
+| `WIDGET_CONFIG_API_KEY` | `apps/api/.env` | API key to protect widget config updates (optional). |
 | `VITE_WIDGET_API_BASE_URL` | `apps/widget/.env` | Default API URL baked into the widget bundle. |
 | `VITE_WIDGET_DEFAULT_PROJECT_ID` | `apps/widget/.env` | Optional fallback project id for auto-init. |
 
-> The API falls back to the file datastore if Mongo credentials are absent. Corrupted JSON files are now quarantined automatically and replaced with a clean copy.
+> The API uses file-based storage only. All data is stored in JSON files under `apps/api/data/`. Corrupted JSON files are automatically quarantined and replaced with clean copies.
 
 ---
 
@@ -106,17 +104,10 @@ npm --prefix apps/api run lint   # if a linter is introduced
 
 ### API
 
-1. Provision MongoDB (optional) and set `DATA_STORE=mongo` + `MONGO_URI` in your production environment.  
-   With file storage, ensure the `DATA_DIRECTORY` path is on durable storage.
-2. **Vercel**: the platform file system is read-only, so you must supply a MongoDB Atlas (or similar) connection string. Set the following environment variables in the project:
-   - `DATA_STORE=mongo`
-   - `MONGO_URI=<your mongodb+srv:// URI>`
+1. **Vercel**: Set the following environment variables in the project:
    - `ALLOWED_ORIGINS=https://dashboard-seven-brown-56-ten.vercel.app,https://widget-eight-ebon-chi.vercel.app` (add any domains that should call the API)
-   The server now defaults to Mongo automatically when running on Vercel. Deployments without `MONGO_URI` will fail fast with a descriptive error.
-3. **Migrating existing leads/events** (optional, one-time):
-   - Ensure `MONGO_URI` in `apps/api/.env` points to the target cluster.
-   - Run `npm run migrate:file-to-mongo` from the repo root to copy data from `apps/api/data/*.json` into MongoDB (skips documents already imported).
-4. Deploy `apps/api` to your platform of choice:
+   - `WIDGET_CONFIG_API_KEY=<your-secure-api-key>` (optional, for protecting config updates)
+2. Deploy `apps/api` to your platform of choice:
    - **Vercel** – create a Node Serverless project pointing at `apps/api/package.json`.
    - **Render/Fly.io** – containerise or run as a Node service.
 5. Configure environment variables in the hosting dashboard (mirror your `.env` file).
@@ -152,7 +143,7 @@ The settings page now lets you tailor every scripted widget response—welcome, 
 
 1. **Branching** – create feature branches from `main`, open PRs, and rely on CI to lint/build the widget.
 2. **Environments** – maintain separate `.env` files (or remote secrets) for local, staging, and production.
-3. **Backups & Monitoring** – forward API logs to your log aggregator, enable uptime checks, and snapshot the data directory (or MongoDB) regularly.
+3. **Backups & Monitoring** – forward API logs to your log aggregator, enable uptime checks, and snapshot the data directory regularly.
 4. **Testing** – add Jest/Playwright suites as you expand functionality; wire them into CI before merging to main.
 
 ---

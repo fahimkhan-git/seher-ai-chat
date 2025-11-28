@@ -103,3 +103,44 @@ Use any hex color code: `#RRGGBB`
 
 **After Changes:** Run `./deploy.sh` to deploy to production
 
+
+
+cd "/Volumes/homesfy workspace/Homesfy Work/seher-ai-chat/seher-ai-chat"
+
+git status
+git diff
+# Add specific files
+git add apps/widget/src/ChatWidget.jsx
+
+# OR add all modified files
+git add .
+
+# OR add specific directory
+git add apps/widget/
+
+git status
+
+git commit -m "Your commit message here"
+git commit -m "Update chat widget auto-open delay to 4.1 seconds"
+
+git push origin main
+
+# 1. Navigate to project
+cd "/Volumes/homesfy workspace/Homesfy Work/seher-ai-chat/seher-ai-chat"
+
+# 2. Check status
+git status
+
+# 3. Add files (choose one)
+git add .                    # Add all changes
+git add apps/widget/         # Add specific directory
+git add apps/widget/src/ChatWidget.jsx  # Add specific file
+
+# 4. Check staged files
+git status
+
+# 5. Commit
+git commit -m "Your descriptive commit message"
+
+# 6. Push
+git push origin main

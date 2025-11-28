@@ -398,7 +398,39 @@ export function ChatWidget({
 }) {
   // Extract propertyInfo from theme
   const propertyInfo = theme.propertyInfo || {};
-  const [isOpen, setIsOpen] = useState(false);
+  // Use ref to preserve isOpen state across re-renders (prevents reset when theme updates)
+  const isOpenRef = useRef(false);
+  const [isOpen, setIsOpenState] = useState(false);
+  
+  // Sync ref with state
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
+  
+  // Protected setIsOpen that prevents accidental closes
+  const setIsOpen = useCallback((value) => {
+    if (value === false) {
+      // CRITICAL: If widget is intentionally open, prevent ALL closes except user-initiated ones
+      // The handleToggle function uses setIsOpenState directly to bypass this protection
+      if (isIntentionallyOpenRef.current) {
+        const timeSinceOpen = Date.now() - lastOpenTimeRef.current;
+        // Only allow close if it's been open for more than 1 second (gives time for state to stabilize)
+        if (timeSinceOpen < 1000) {
+          console.warn("HomesfyChat: ⚠️ BLOCKED close attempt - widget was intentionally open. Mount ID:", componentMountIdRef.current, "Time since open:", timeSinceOpen, "ms");
+          return; // Block the close
+        }
+      }
+      // If closing is allowed, reset the flag
+      isIntentionallyOpenRef.current = false;
+    } else if (value === true) {
+      // Mark as intentionally open when opening
+      isIntentionallyOpenRef.current = true;
+      lastOpenTimeRef.current = Date.now();
+      console.log("HomesfyChat: Widget marked as intentionally open - Mount ID:", componentMountIdRef.current);
+    }
+    setIsOpenState(value);
+    isOpenRef.current = value;
+  }, []);
   const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [selectedCta, setSelectedCta] = useState(null);
@@ -411,6 +443,10 @@ export function ChatWidget({
   const messagesEndRef = useRef(null);
   const hasShownRef = useRef(false);
   const autoOpenTimeoutRef = useRef(null);
+  const autoOpenInitializedRef = useRef(false); // Track if auto-open has been set up
+  const isIntentionallyOpenRef = useRef(false); // Track if widget was intentionally opened (prevents auto-close)
+  const componentMountIdRef = useRef(`widget-${Date.now()}-${Math.random()}`); // Unique ID to track remounts
+  const lastOpenTimeRef = useRef(0); // Track when widget was last opened (to prevent immediate closes)
   const [manualInput, setManualInput] = useState("");
   const [nameInput, setNameInput] = useState(""); // Separate state for name
   const [phoneInput, setPhoneInput] = useState(""); // Separate state for phone
@@ -432,18 +468,18 @@ export function ChatWidget({
       ctaAcknowledgement:
         theme.followupMessage ||
         theme.ctaAcknowledgement ||
-        "Sure… I’ll send that across right away!",
+        "Sure… I'll send that across right away!",
       bhkPrompt:
         theme.bhkPrompt || "Which configuration you are looking for?",
       inventoryMessage:
         theme.inventoryMessage ||
-        "That’s cool… we have inventory available with us.",
+        "That's cool… we have inventory available with us.",
       phonePrompt:
         theme.phonePrompt || "Please enter your mobile number...",
       thankYouMessage:
         theme.thankYouMessage ||
         "Thanks! Our expert will call you shortly 📞",
-      autoOpenDelayMs: Number(theme.autoOpenDelayMs || 4100),
+      autoOpenDelayMs: Number(theme.autoOpenDelayMs || 4001),
       bubbleTitle: theme.bubbleTitle || "Chat with us",
       bubbleSubtitle: theme.bubbleSubtitle || "Expert help in minutes",
       heroPoints:
@@ -464,6 +500,85 @@ export function ChatWidget({
     }),
     [theme]
   );
+
+  // Store latest theme in ref for use in effects (initialized after resolvedTheme is defined)
+  const resolvedThemeRef = useRef(resolvedTheme);
+  
+  // Keep ref updated with latest theme
+  useEffect(() => {
+    resolvedThemeRef.current = resolvedTheme;
+  }, [resolvedTheme]);
+
+  // Store state refs for persistence
+  const stateRefs = useRef({
+    messages,
+    selectedCta,
+    selectedBhk,
+    currentStage,
+    userName,
+    nameSubmitted,
+    phoneSubmitted,
+  });
+  
+  // Update refs when state changes
+  useEffect(() => {
+    stateRefs.current = {
+      messages,
+      selectedCta,
+      selectedBhk,
+      currentStage,
+      userName,
+      nameSubmitted,
+      phoneSubmitted,
+    };
+  }, [messages, selectedCta, selectedBhk, currentStage, userName, nameSubmitted, phoneSubmitted]);
+
+  // Detect component mount/remount - simplified to prevent conflicts
+  useEffect(() => {
+    const mountId = componentMountIdRef.current;
+    // projectId is used for lead submission to CRM (widget design uses shared config)
+    console.log("HomesfyChat: Component mounted - Mount ID:", mountId, "Project ID (for lead submission):", projectId, "isOpen:", isOpen);
+    
+    // CRITICAL: Restore isOpen state from ref if it was open before re-render
+    // This prevents the widget from closing when theme updates cause re-renders
+    if (isOpenRef.current && !isOpen) {
+      console.log("HomesfyChat: Restoring isOpen state from ref - widget was open before re-render");
+      setIsOpenState(true);
+      // Also restore the intentionally open flag
+      if (!isIntentionallyOpenRef.current) {
+        isIntentionallyOpenRef.current = true;
+        lastOpenTimeRef.current = Date.now();
+      }
+    }
+    
+    // Don't restore state on mount - let the auto-open logic handle it
+    // This prevents conflicts between state restoration and auto-open
+    
+    return () => {
+      console.log("HomesfyChat: Component unmounting - Mount ID:", mountId, "isOpen:", isOpen);
+      // Clear the intentionally open flag on unmount
+      isIntentionallyOpenRef.current = false;
+    };
+  }, []); // Only run on mount/unmount
+  
+  // CRITICAL: Preserve isOpen state when component re-renders (prevents widget from closing on theme updates)
+  // This effect runs after render to check if state was lost
+  const prevIsOpenRef = useRef(isOpen);
+  useEffect(() => {
+    // If widget was open (according to ref) but state says it's closed, restore it
+    // This handles the case where React re-rendered and reset state
+    // Only check if state actually changed to prevent unnecessary runs
+    if (isOpenRef.current && !isOpen && prevIsOpenRef.current !== isOpen) {
+      console.log("HomesfyChat: State mismatch detected - restoring isOpen state to prevent widget from closing");
+      setIsOpenState(true);
+      // Restore the intentionally open flag
+      if (!isIntentionallyOpenRef.current) {
+        isIntentionallyOpenRef.current = true;
+        lastOpenTimeRef.current = Date.now();
+      }
+    }
+    prevIsOpenRef.current = isOpen;
+  }); // Run after every render to catch state resets
 
   const ctaOptions = CTA_OPTIONS;
 
@@ -578,46 +693,82 @@ export function ChatWidget({
   }
 
 
-  const openChatOnce = () => {
+  const openChatOnce = useCallback(() => {
     if (autoOpenTimeoutRef.current) {
       clearTimeout(autoOpenTimeoutRef.current);
       autoOpenTimeoutRef.current = null;
     }
 
-    setIsOpen(true);
+    console.log("HomesfyChat: Opening widget - Mount ID:", componentMountIdRef.current);
+    // CRITICAL: Set flags BEFORE opening to prevent immediate close
+    isIntentionallyOpenRef.current = true;
+    lastOpenTimeRef.current = Date.now();
+    setIsOpenState(true); // Use direct state setter
 
     if (!hasShownRef.current) {
       hasShownRef.current = true;
-    pushSystemMessage(resolvedTheme.welcomeMessage);
-    trackEvent("chat_shown");
+      pushSystemMessage(resolvedTheme.welcomeMessage);
+      trackEvent("chat_shown");
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedTheme.welcomeMessage]); // trackEvent is stable and doesn't need to be in deps
 
+  // Auto-open effect - runs only once on mount
   useEffect(() => {
     if (typeof window === "undefined") {
       return undefined;
     }
 
-    if (autoOpenTimeoutRef.current) {
-      clearTimeout(autoOpenTimeoutRef.current);
-      autoOpenTimeoutRef.current = null;
+    // CRITICAL: Only run once - if already initialized, don't run again
+    if (autoOpenInitializedRef.current) {
+      return undefined;
     }
 
+    // Mark as initialized immediately to prevent re-runs
+    autoOpenInitializedRef.current = true;
+
+    // Prevent multiple auto-open attempts - if already shown, don't set up timeout
     if (hasShownRef.current) {
       return undefined;
     }
 
     // Mobile: auto-open after 6 seconds, Desktop: use configured delay
     const isMobileView = window.innerWidth <= 960;
+    // Use ref to get latest value without causing re-runs
+    const currentTheme = resolvedThemeRef.current;
     const delay = isMobileView 
       ? 6000  // 6 seconds on mobile
-      : Math.max(0, resolvedTheme.autoOpenDelayMs || 0);
+      : Math.max(0, currentTheme.autoOpenDelayMs || 0);
 
     // Don't auto-open if delay is 0 or not set (desktop only) - let user click the bubble
     // On mobile, always auto-open after 6 seconds
     if (delay > 0) {
+      console.log("HomesfyChat: Setting up auto-open timeout - Mount ID:", componentMountIdRef.current, "Delay:", delay);
       autoOpenTimeoutRef.current = window.setTimeout(() => {
-        openChatOnce();
+        // Double-check before opening (in case user manually opened it)
+        if (!hasShownRef.current && !isIntentionallyOpenRef.current) {
+          console.log("HomesfyChat: Auto-opening widget - Mount ID:", componentMountIdRef.current);
+          // CRITICAL: Set flags BEFORE opening to prevent immediate close
+          isIntentionallyOpenRef.current = true;
+          lastOpenTimeRef.current = Date.now();
+          
+          // Use direct state setter to open
+          setIsOpenState(true);
+          
+          // Small delay to ensure state is set before adding message
+          setTimeout(() => {
+            if (!hasShownRef.current) {
+              hasShownRef.current = true;
+              // Use ref to get latest welcome message
+              const latestTheme = resolvedThemeRef.current;
+              pushSystemMessage(latestTheme.welcomeMessage);
+              trackEvent("chat_shown");
+            }
+          }, 50);
+        } else {
+          console.log("HomesfyChat: Skipping auto-open - already shown or intentionally open - Mount ID:", componentMountIdRef.current);
+        }
+        autoOpenTimeoutRef.current = null;
       }, delay);
     }
 
@@ -627,7 +778,8 @@ export function ChatWidget({
         autoOpenTimeoutRef.current = null;
       }
     };
-  }, [resolvedTheme]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run once on mount, use refs for latest values
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -706,10 +858,13 @@ export function ChatWidget({
 
   const handleToggle = () => {
     if (isOpen) {
-      setIsOpen(false);
+      console.log("HomesfyChat: User closing widget - Mount ID:", componentMountIdRef.current);
+      isIntentionallyOpenRef.current = false; // User is intentionally closing
+      setIsOpenState(false); // Use direct state setter to bypass protection
       return;
     }
 
+    console.log("HomesfyChat: User opening widget - Mount ID:", componentMountIdRef.current);
     openChatOnce();
   };
 
@@ -910,9 +1065,9 @@ export function ChatWidget({
         }
       }
 
-      // Get project ID for lead submission - ALWAYS use projectId prop (from data-project attribute)
+      // Get project ID for lead submission - extracted from script's data-project attribute
       // This ensures each microsite's leads are sent to CRM with the correct project ID
-      // NOTE: Widget config is shared, but leads use the actual project ID from embed script
+      // Widget design is shared (same for all), but leads are project-specific
       const urlParams = new URLSearchParams(window.location.search);
       const projectIdFromUrl = urlParams.get("project_id") || urlParams.get("projectId");
       // Check for data attribute on script tag as fallback
@@ -921,14 +1076,17 @@ export function ChatWidget({
         document.querySelector('script[data-project-id]') ||
         document.querySelector('script[src*="widget.js"]');
       const projectIdFromData = scriptElement?.dataset?.project || scriptElement?.dataset?.projectId;
-      // CRITICAL: Use projectId prop FIRST (from embed script data-project attribute)
+      // Use projectId prop FIRST (from embed script data-project attribute)
       // This is the project ID that will be sent to CRM with the lead
       const finalProjectId = projectId || projectIdFromUrl || projectIdFromData || "5796";
       
-      console.log("HomesfyChat: Lead submission - Using project ID for CRM:", finalProjectId, "Source:", {
-        fromProp: projectId,
-        fromUrl: projectIdFromUrl,
-        fromData: projectIdFromData,
+      // Project ID is used for lead submission to CRM
+      // Widget design uses shared config (same for all projects)
+      console.log("HomesfyChat: 📝 Submitting lead to CRM with project ID:", finalProjectId);
+      console.log("HomesfyChat: 📋 Project ID source:", {
+        fromProp: projectId || "Not found",
+        fromUrl: projectIdFromUrl || "Not found",
+        fromData: projectIdFromData || "Not found",
         final: finalProjectId
       });
 
@@ -1253,14 +1411,44 @@ export function ChatWidget({
     }
   };
 
-  // Log when widget renders
+  // Log when widget renders and monitor state changes
   useEffect(() => {
     console.log("HomesfyChat: Widget component rendered", {
       isOpen,
       bubblePosition: resolvedTheme.bubblePosition,
-      hasAvatar: !!avatarUrl
+      hasAvatar: !!avatarUrl,
+      mountId: componentMountIdRef.current,
+      intentionallyOpen: isIntentionallyOpenRef.current,
+      hasShown: hasShownRef.current
     });
   }, [isOpen, resolvedTheme.bubblePosition, avatarUrl]);
+
+  // Monitor isOpen changes to detect unexpected closes
+  useEffect(() => {
+    if (isOpen) {
+      console.log("HomesfyChat: Widget opened - Mount ID:", componentMountIdRef.current, "Intentionally open:", isIntentionallyOpenRef.current);
+      // Ensure flag is set when widget is open
+      if (!isIntentionallyOpenRef.current) {
+        console.log("HomesfyChat: Widget opened but flag not set - setting it now");
+        isIntentionallyOpenRef.current = true;
+        lastOpenTimeRef.current = Date.now();
+      }
+    } else {
+      console.log("HomesfyChat: Widget closed - Mount ID:", componentMountIdRef.current, "Intentionally:", isIntentionallyOpenRef.current);
+      // If widget closes but was intentionally open very recently, it's likely a bug
+      if (isIntentionallyOpenRef.current) {
+        const timeSinceOpen = Date.now() - lastOpenTimeRef.current;
+        if (timeSinceOpen < 2000) {
+          console.error("HomesfyChat: ❌ CRITICAL - Widget closed unexpectedly within 2 seconds of opening! Time since open:", timeSinceOpen, "ms. Mount ID:", componentMountIdRef.current);
+          // Don't reset flag - keep it open to prevent further closes
+          // The protected setIsOpen will block the close
+        } else {
+          // It's been open for a while, might be legitimate close
+          isIntentionallyOpenRef.current = false;
+        }
+      }
+    }
+  }, [isOpen]);
 
   return (
     <div
