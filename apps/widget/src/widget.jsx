@@ -33,9 +33,9 @@ const envDefaultProjectId =
     : undefined;
 
 // Cache for widget theme to prevent repeated fetches
-// Reduced to 30 seconds to ensure widget gets latest config updates quickly
+// Very short cache (10 seconds) to ensure widget always gets latest config
 const themeCache = new Map();
-const CACHE_DURATION_MS = 30 * 1000; // 30 seconds (allows latest config while preventing excessive requests)
+const CACHE_DURATION_MS = 10 * 1000; // 10 seconds (ensures latest config while preventing excessive requests)
 
 // Function to clear cache (useful for forcing fresh config)
 function clearThemeCache() {
@@ -67,17 +67,20 @@ async function fetchWidgetTheme(apiBaseUrl, projectId, forceRefresh = false) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
     
-    // Add cache-busting query parameter to ensure fresh config
-    const cacheBustParam = cacheBust ? `?t=${Date.now()}` : '';
+    // ALWAYS add timestamp to bypass browser cache and ensure latest config
+    // This ensures we get the latest config from the server every time
+    const timestamp = Date.now();
     const response = await fetch(
-      `${apiBaseUrl}/api/widget-config/${encodeURIComponent(projectId)}${cacheBustParam}`,
+      `${apiBaseUrl}/api/widget-config/${encodeURIComponent(projectId)}?t=${timestamp}&_=${timestamp}`,
       {
         signal: controller.signal,
         credentials: 'omit', // Don't send credentials
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache', // Prevent browser caching
+          'Pragma': 'no-cache',
         },
-        cache: cacheBust ? 'no-cache' : 'default', // Force no-cache if refreshing
+        cache: 'no-store', // Always fetch fresh from server, never use browser cache
       }
     );
     
@@ -87,9 +90,11 @@ async function fetchWidgetTheme(apiBaseUrl, projectId, forceRefresh = false) {
       throw new Error(`Failed to load widget config for ${projectId}`);
     }
     const data = await response.json();
-    // Cache the result
-    themeCache.set(cacheKey, { data, timestamp: Date.now() });
-    console.log("HomesfyChat: ✅ Fresh config loaded and cached");
+    // Cache the result with timestamp
+    const cacheTimestamp = Date.now();
+    themeCache.set(cacheKey, { data, timestamp: cacheTimestamp });
+    console.log("HomesfyChat: ✅ Latest config loaded from server and cached (will refresh in 10 seconds)");
+    console.log("HomesfyChat: 📋 Config timestamp:", new Date(cacheTimestamp).toISOString());
     return data;
   } catch (error) {
     if (error.name === 'AbortError') {
@@ -427,20 +432,24 @@ async function init(options = {}) {
   console.log("HomesfyChat: 📝 Lead Submission: Will use project ID from script:", leadProjectId);
   
   // Fetch shared widget config (design/appearance) - same for all projects
-  // Check for cache-busting parameter to force fresh config
+  // ALWAYS fetch fresh config on page load to ensure latest settings
   const urlParams = new URLSearchParams(window.location.search);
   const forceRefresh = urlParams.get('widget_cache_bust') === 'true';
   
+  console.log("HomesfyChat: 🔄 Fetching latest widget config from server...");
   let remoteTheme = {};
   try {
+    // Always fetch fresh config (cache is only 10 seconds to prevent excessive requests)
     remoteTheme = await fetchWidgetTheme(apiBaseUrl, "default", forceRefresh);
     if (Object.keys(remoteTheme).length > 0) {
-      console.log("HomesfyChat: ✅ Shared widget config loaded successfully");
+      console.log("HomesfyChat: ✅ Latest widget config loaded successfully from server");
+      console.log("HomesfyChat: 📋 Config keys:", Object.keys(remoteTheme).join(', '));
     } else {
       console.log("HomesfyChat: ⚠️ Using hardcoded default config (no remote config found)");
     }
   } catch (error) {
-    console.warn("HomesfyChat: ⚠️ Failed to fetch shared config, using hardcoded defaults:", error);
+    console.warn("HomesfyChat: ⚠️ Failed to fetch latest config, using hardcoded defaults:", error);
+    console.warn("HomesfyChat: 💡 Widget will still work with default settings");
     remoteTheme = {};
   }
   

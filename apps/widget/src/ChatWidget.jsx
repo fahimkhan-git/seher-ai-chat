@@ -479,7 +479,7 @@ export function ChatWidget({
       thankYouMessage:
         theme.thankYouMessage ||
         "Thanks! Our expert will call you shortly 📞",
-      autoOpenDelayMs: Number(theme.autoOpenDelayMs || 4001),
+      autoOpenDelayMs: Number(theme.autoOpenDelayMs || 4000),
       bubbleTitle: theme.bubbleTitle || "Chat with us",
       bubbleSubtitle: theme.bubbleSubtitle || "Expert help in minutes",
       heroPoints:

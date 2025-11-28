@@ -44,19 +44,31 @@ function loadConfigFile() {
     }
   }
   
-  // If all paths failed, log detailed error
-  console.error("❌ CRITICAL: Could not load config file from any path!");
-  console.error("   Tried paths:", pathsToTry);
-  console.error("   Current working directory:", cwd);
-  console.error("   Module directory:", moduleDir);
-  console.error("   Vercel environment:", !!process.env.VERCEL);
-  console.error("   __dirname equivalent:", moduleDir);
+  // If all paths failed, log detailed error (but don't throw - return null gracefully)
+  console.warn("⚠️ Could not load config file from any path - using defaults");
+  if (process.env.NODE_ENV === 'development' || process.env.VERCEL) {
+    console.warn("   Tried paths:", pathsToTry);
+    console.warn("   Current working directory:", cwd);
+    console.warn("   Module directory:", moduleDir);
+    console.warn("   Vercel environment:", !!process.env.VERCEL);
+  }
   
+  // Return null instead of throwing - let the caller handle it
   return null;
 }
 
-// Load config at module initialization
-widgetConfigData = loadConfigFile();
+// Load config at module initialization - don't crash if file not found
+try {
+  widgetConfigData = loadConfigFile();
+  if (!widgetConfigData) {
+    console.warn("⚠️ Widget config file not found at initialization - will use defaults");
+    widgetConfigData = DEFAULT_STORE;
+  }
+} catch (error) {
+  console.error("❌ Error loading widget config at initialization:", error.message);
+  console.warn("⚠️ Using default empty config - widget will use hardcoded defaults");
+  widgetConfigData = DEFAULT_STORE;
+}
 
 const FILE_NAME = "widget-config.json";
 const DEFAULT_STORE = { configs: [] };
