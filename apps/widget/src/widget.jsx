@@ -92,11 +92,8 @@ async function fetchWidgetTheme(apiBaseUrl, projectId, forceRefresh = false) {
       {
         signal: controller.signal,
         credentials: 'omit', // Don't send credentials
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache', // Prevent browser caching
-          'Pragma': 'no-cache',
-        },
+        // Don't send custom headers - they trigger CORS preflight and aren't needed
+        // cache: 'no-store' already prevents browser caching
         cache: 'no-store', // Always fetch fresh from server, never use browser cache
       }
     );
