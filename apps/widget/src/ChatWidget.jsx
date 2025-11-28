@@ -449,7 +449,7 @@ export function ChatWidget({
   const [userName, setUserName] = useState(preservedState?.userName || "");
   const [error, setError] = useState(null);
   const [visitorContext, setVisitorContext] = useState({});
-  const [showModal, setShowModal] = useState(false); // Modal state - shows after 6 seconds
+  const [showModal, setShowModal] = useState(false); // Modal state - shows after 8 seconds
   const messagesEndRef = useRef(null);
   const hasShownRef = useRef(preservedState?.hasShown || false);
   const autoOpenTimeoutRef = useRef(null);
@@ -785,8 +785,8 @@ export function ChatWidget({
       autoOpenTimeoutRef.current = null;
     }
 
-    // Show modal after 6 seconds (instead of auto-opening chat)
-    const delay = 6000; // Always 6 seconds for modal
+    // Show modal after 8 seconds (instead of auto-opening chat)
+    const delay = 8000; // Always 8 seconds for modal
     
     console.log("HomesfyChat: Setting up modal display timeout - Mount ID:", componentMountIdRef.current, "Delay:", delay);
     autoOpenTimeoutRef.current = window.setTimeout(() => {
@@ -1794,7 +1794,7 @@ export function ChatWidget({
         </div>
       )}
 
-      {/* Modal - appears after 6 seconds */}
+      {/* Modal - appears after 8 seconds */}
       {showModal && !isOpen && (
         <div className="homesfy-widget__modal" onClick={(e) => e.stopPropagation()}>
           <div className="homesfy-widget__modal-content">
