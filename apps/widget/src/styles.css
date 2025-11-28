@@ -1226,4 +1226,127 @@
   }
 }
 
+/* Modal Styles */
+.homesfy-widget__modal {
+  position: absolute;
+  bottom: 80px;
+  width: 320px;
+  max-width: calc(100vw - 48px);
+  z-index: 2147483648;
+  pointer-events: auto;
+  animation: modalAppear 0.3s ease-out;
+}
+
+/* Modal positioning based on bubble position */
+.homesfy-widget__bottom-right .homesfy-widget__modal {
+  right: 0;
+  left: auto;
+}
+
+.homesfy-widget__bottom-left .homesfy-widget__modal {
+  left: 0;
+  right: auto;
+}
+
+@keyframes modalAppear {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.homesfy-widget__modal-content {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.16);
+  padding: 24px;
+  position: relative;
+  border: 1px solid rgba(var(--homesfy-primary-rgb), 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.homesfy-widget__modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.homesfy-widget__modal-close:hover {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.homesfy-widget__modal-header {
+  text-align: center;
+  padding-top: 8px;
+}
+
+.homesfy-widget__modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
+  line-height: 1.3;
+}
+
+.homesfy-widget__modal-message {
+  font-size: 15px;
+  color: #666;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.homesfy-widget__modal-button {
+  width: 100%;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 12px rgba(var(--homesfy-primary-rgb), 0.3);
+}
+
+.homesfy-widget__modal-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(var(--homesfy-primary-rgb), 0.4);
+}
+
+.homesfy-widget__modal-button:active {
+  transform: translateY(0);
+}
+
+/* Mobile Modal Styles */
+@media (max-width: 960px) {
+  .homesfy-widget__modal {
+    bottom: 80px;
+    right: 24px;
+    left: auto;
+    width: calc(100vw - 48px);
+    max-width: 320px;
+  }
+}
+
 

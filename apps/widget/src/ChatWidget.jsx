@@ -449,6 +449,7 @@ export function ChatWidget({
   const [userName, setUserName] = useState(preservedState?.userName || "");
   const [error, setError] = useState(null);
   const [visitorContext, setVisitorContext] = useState({});
+  const [showModal, setShowModal] = useState(false); // Modal state - shows after 6 seconds
   const messagesEndRef = useRef(null);
   const hasShownRef = useRef(preservedState?.hasShown || false);
   const autoOpenTimeoutRef = useRef(null);
@@ -784,46 +785,21 @@ export function ChatWidget({
       autoOpenTimeoutRef.current = null;
     }
 
-    // Mobile: auto-open after 6 seconds, Desktop: use configured delay
-    const isMobileView = window.innerWidth <= 960;
-    // Use ref to get latest value without causing re-runs
-    const currentTheme = resolvedThemeRef.current;
-    const delay = isMobileView 
-      ? 6000  // 6 seconds on mobile
-      : Math.max(0, currentTheme.autoOpenDelayMs || 0);
-
-    // Don't auto-open if delay is 0 or not set (desktop only) - let user click the bubble
-    // On mobile, always auto-open after 6 seconds
-    if (delay > 0) {
-      console.log("HomesfyChat: Setting up auto-open timeout - Mount ID:", componentMountIdRef.current, "Delay:", delay);
-      autoOpenTimeoutRef.current = window.setTimeout(() => {
-        // Double-check before opening (in case user manually opened it)
-        if (!hasShownRef.current && !isOpenRef.current && !isIntentionallyOpenRef.current) {
-          console.log("HomesfyChat: Auto-opening widget - Mount ID:", componentMountIdRef.current);
-          // CRITICAL: Set flags BEFORE opening to prevent immediate close
-          isIntentionallyOpenRef.current = true;
-          lastOpenTimeRef.current = Date.now();
-          isOpenRef.current = true;
-          
-          // Use protected setter to open
-          setIsOpen(true);
-          
-          // Small delay to ensure state is set before adding message
-          setTimeout(() => {
-            if (!hasShownRef.current && isOpenRef.current) {
-              hasShownRef.current = true;
-              // Use ref to get latest welcome message
-              const latestTheme = resolvedThemeRef.current;
-              pushSystemMessage(latestTheme.welcomeMessage);
-              trackEvent("chat_shown");
-            }
-          }, 100);
-        } else {
-          console.log("HomesfyChat: Skipping auto-open - already shown or open - Mount ID:", componentMountIdRef.current);
-        }
-        autoOpenTimeoutRef.current = null;
-      }, delay);
-    }
+    // Show modal after 6 seconds (instead of auto-opening chat)
+    const delay = 6000; // Always 6 seconds for modal
+    
+    console.log("HomesfyChat: Setting up modal display timeout - Mount ID:", componentMountIdRef.current, "Delay:", delay);
+    autoOpenTimeoutRef.current = window.setTimeout(() => {
+      // Double-check before showing modal (in case user already opened chat)
+      if (!hasShownRef.current && !isOpenRef.current && !isIntentionallyOpenRef.current) {
+        console.log("HomesfyChat: Showing modal - Mount ID:", componentMountIdRef.current);
+        setShowModal(true);
+        trackEvent("modal_shown");
+      } else {
+        console.log("HomesfyChat: Skipping modal - already shown or open - Mount ID:", componentMountIdRef.current);
+      }
+      autoOpenTimeoutRef.current = null;
+    }, delay);
 
     return () => {
       if (autoOpenTimeoutRef.current) {
@@ -920,11 +896,32 @@ export function ChatWidget({
       console.log("HomesfyChat: User closing widget - Mount ID:", componentMountIdRef.current);
       isIntentionallyOpenRef.current = false; // User is intentionally closing
       setIsOpen(false, true); // Force close (bypass protection for user action)
+      setShowModal(false); // Also close modal if open
       return;
     }
 
     console.log("HomesfyChat: User opening widget - Mount ID:", componentMountIdRef.current);
+    setShowModal(false); // Close modal when opening chat
     openChatOnce();
+  };
+
+  // Handle modal "Let's Chat" button click
+  const handleModalChatClick = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setShowModal(false);
+    openChatOnce();
+  };
+
+  // Handle modal close (X button)
+  const handleModalClose = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setShowModal(false);
   };
 
   const handleCtaSelect = (cta) => {
@@ -1793,6 +1790,36 @@ export function ChatWidget({
                 </button>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal - appears after 6 seconds */}
+      {showModal && !isOpen && (
+        <div className="homesfy-widget__modal" onClick={(e) => e.stopPropagation()}>
+          <div className="homesfy-widget__modal-content">
+            <button 
+              className="homesfy-widget__modal-close" 
+              onClick={handleModalClose}
+              aria-label="Close modal"
+            >
+              ×
+            </button>
+            <div className="homesfy-widget__modal-header">
+              <h3 className="homesfy-widget__modal-title">
+                Hey, I'm {resolvedTheme.agentName}!
+              </h3>
+              <p className="homesfy-widget__modal-message">
+                How can I help you?
+              </p>
+            </div>
+            <button
+              className="homesfy-widget__modal-button"
+              style={{ background: resolvedTheme.primaryColor }}
+              onClick={handleModalChatClick}
+            >
+              Let's Chat
+            </button>
           </div>
         </div>
       )}
