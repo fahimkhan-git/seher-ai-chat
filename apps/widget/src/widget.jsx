@@ -481,6 +481,36 @@ async function init(options = {}) {
       });
       console.log("HomesfyChat: ✅ Widget mounted successfully");
       console.log("HomesfyChat: 🎨 Design: Shared config (same for all) | 📝 Leads: Project ID", leadProjectId);
+      
+      // Debug: Verify widget is in DOM and visible
+      setTimeout(() => {
+        const hostElement = document.querySelector('[data-homesfy-widget-host="true"]');
+        const bubbleButton = hostElement?.shadowRoot?.querySelector('.homesfy-widget__bubble-button');
+        if (hostElement) {
+          console.log("HomesfyChat: ✅ Widget host element found in DOM");
+          console.log("HomesfyChat: 📍 Host position:", {
+            position: window.getComputedStyle(hostElement).position,
+            zIndex: window.getComputedStyle(hostElement).zIndex,
+            display: window.getComputedStyle(hostElement).display,
+            visibility: window.getComputedStyle(hostElement).visibility
+          });
+          if (bubbleButton) {
+            console.log("HomesfyChat: ✅ Bubble button found");
+            const bubbleStyles = window.getComputedStyle(bubbleButton);
+            console.log("HomesfyChat: 📍 Bubble button styles:", {
+              display: bubbleStyles.display,
+              visibility: bubbleStyles.visibility,
+              opacity: bubbleStyles.opacity,
+              position: bubbleStyles.position
+            });
+          } else {
+            console.warn("HomesfyChat: ⚠️ Bubble button not found in shadow DOM");
+          }
+        } else {
+          console.error("HomesfyChat: ❌ Widget host element NOT found in DOM!");
+        }
+      }, 500);
+      
       return widgetInstance;
     } catch (error) {
       console.error("HomesfyChat: Failed to mount widget:", error);

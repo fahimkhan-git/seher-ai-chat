@@ -167,17 +167,44 @@ async function bootstrap() {
     res.status(204).end();
   });
 
-  // Error handling middleware
+  // Error handling middleware - MUST set CORS headers before sending response
   app.use((err, req, res, next) => {
     console.error("Error:", err);
+    
+    // Set CORS headers even for errors
+    const origin = req.headers.origin;
+    if (expandedOrigins.includes("*")) {
+      res.header('Access-Control-Allow-Origin', '*');
+    } else if (origin && expandedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Credentials', 'true');
+    } else {
+      res.header('Access-Control-Allow-Origin', '*');
+    }
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-API-Key');
+    
     res.status(err.status || 500).json({
       error: err.message || "Internal Server Error",
       status: "error"
     });
   });
 
-  // 404 handler
+  // 404 handler - MUST set CORS headers
   app.use((req, res) => {
+    // Set CORS headers even for 404
+    const origin = req.headers.origin;
+    if (expandedOrigins.includes("*")) {
+      res.header('Access-Control-Allow-Origin', '*');
+    } else if (origin && expandedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Credentials', 'true');
+    } else {
+      res.header('Access-Control-Allow-Origin', '*');
+    }
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-API-Key');
+    
     res.status(404).json({
       error: "Not Found",
       status: "error",
