@@ -2,26 +2,18 @@
 node_modules/
 **/node_modules/
 
-# Environment variables
+# Environment files
 .env
 .env.local
-.env.production
 .env.*.local
 apps/api/.env
-apps/api/.env.production
+apps/widget/.env
+apps/dashboard/.env
 
 # Build outputs
 dist/
 build/
 *.log
-
-# Data files - ignore runtime data, keep widget-config.json for production
-apps/api/data/chat-sessions.json
-apps/api/data/events.json
-apps/api/data/leads.json
-apps/api/data/*.tmp
-apps/api/data/*.backup
-# Note: widget-config.json is kept (needed for file storage in production)
 
 # IDE
 .vscode/
@@ -39,5 +31,7 @@ Thumbs.db
 
 # Temporary files
 *.tmp
-*.bak
-*.backup
+*.temp
+
+# Test files (keep test-widget-local.html for local testing)
+# test-widget-local.html

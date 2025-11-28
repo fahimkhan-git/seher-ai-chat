@@ -139,6 +139,24 @@ The settings page now lets you tailor every scripted widget response—welcome, 
 
 ---
 
+## 🚀 Perfect Deployment Workflow
+
+**The Simple Process:**
+1. ✅ **Test Locally** → `npm run dev:api` + `npm run dev:widget`
+2. ✅ **Make Changes** → Edit code/config, test in browser
+3. ✅ **Push to Git** → `git push origin main`
+4. ✅ **Auto-Deploy** → Vercel automatically deploys in 2-3 minutes
+
+**📚 Full Guides:**
+- **[QUICK_START.md](./QUICK_START.md)** - Quick reference for daily workflow
+- **[DEPLOYMENT_WORKFLOW.md](./DEPLOYMENT_WORKFLOW.md)** - Complete deployment guide with troubleshooting
+
+**Key Points:**
+- ✅ Always test locally first
+- ✅ Config changes appear immediately (no restart needed)
+- ✅ Push to `main` → auto-deploys to production
+- ✅ No manual deployment steps needed
+
 ## Recommended Workflow
 
 1. **Branching** – create feature branches from `main`, open PRs, and rely on CI to lint/build the widget.
