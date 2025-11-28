@@ -74,28 +74,25 @@ const FILE_NAME = "widget-config.json";
 const DEFAULT_STORE = { configs: [] };
 
 async function loadStore() {
-  // In local development, always reload from file to see changes immediately
-  // On Vercel, use cached version for performance
-  if (!process.env.VERCEL && process.env.NODE_ENV !== 'production') {
-    // Local development: reload file on every request to see changes immediately
-    const freshConfig = loadConfigFile();
-    if (freshConfig) {
-      widgetConfigData = freshConfig;
+  // CRITICAL: Always reload from file to ensure latest config
+  // On Vercel, the file is read-only from git, so we need to reload it on each request
+  // to get the latest deployed version (after git push + Vercel redeploy)
+  const freshConfig = loadConfigFile();
+  if (freshConfig) {
+    // Update the cached version with fresh data
+    widgetConfigData = freshConfig;
+    if (process.env.VERCEL) {
+      console.log("🔄 Vercel: Reloaded config from file (ensures latest deployed config)");
+    } else {
       console.log("🔄 Local dev: Reloaded config from file (changes will appear immediately)");
-      return freshConfig;
     }
+    return freshConfig;
   }
   
-  // If we have the config data loaded, use it (works on both Vercel and local)
+  // Fallback: if file load failed, try cached version
   if (widgetConfigData) {
+    console.warn("⚠️ Using cached config (file load failed)");
     return widgetConfigData;
-  }
-  
-  // Fallback: try to load it now (in case it wasn't loaded at module init)
-  const loaded = loadConfigFile();
-  if (loaded) {
-    widgetConfigData = loaded;
-    return loaded;
   }
   
   // Last resort: try reading from file system (for local development)
@@ -164,18 +161,12 @@ const lastLogTime = new Map();
 const LOG_INTERVAL_MS = 60000; // Only log once per minute per projectId
 
 export async function getWidgetConfig(projectId) {
-  // In local development, always reload from file (don't use cache)
-  // This ensures config changes appear immediately
-  if (!process.env.VERCEL && process.env.NODE_ENV !== 'production') {
-    // Clear cache for this projectId to force fresh load
-    configCache.delete(projectId);
-  } else {
-    // In production, check cache first
-    if (configCache.has(projectId)) {
-      return configCache.get(projectId);
-    }
-  }
+  // CRITICAL: Always reload from file (don't use cache)
+  // This ensures config changes appear immediately after git push + Vercel redeploy
+  // Clear cache to force fresh load from file
+  configCache.delete(projectId);
   
+  // Always reload store from file to get latest config
   const store = await loadStore();
   
   // Log store contents for debugging (only occasionally)

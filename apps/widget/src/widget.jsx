@@ -50,9 +50,9 @@ const envDefaultProjectId =
     : undefined;
 
 // Cache for widget theme to prevent repeated fetches
-// Very short cache (5 seconds) to ensure widget always gets latest config
+// Very short cache (2 seconds) to ensure widget always gets latest config
 const themeCache = new Map();
-const CACHE_DURATION_MS = 5 * 1000; // 5 seconds (ensures latest config while preventing excessive requests)
+const CACHE_DURATION_MS = 2 * 1000; // 2 seconds (ensures latest config while preventing excessive requests)
 
 // Function to clear cache (useful for forcing fresh config)
 function clearThemeCache() {
@@ -508,8 +508,9 @@ async function init(options = {}) {
   console.log("HomesfyChat: 🔄 Fetching latest widget config from server...");
   let remoteTheme = {};
   try {
-    // Always fetch fresh config (cache is only 10 seconds to prevent excessive requests)
-    remoteTheme = await fetchWidgetTheme(apiBaseUrl, "default", forceRefresh);
+    // Always fetch fresh config on page load (force refresh on initial load)
+    // Cache is only 2 seconds to ensure latest config appears quickly
+    remoteTheme = await fetchWidgetTheme(apiBaseUrl, "default", true); // Force refresh on page load
     if (Object.keys(remoteTheme).length > 0) {
       console.log("HomesfyChat: ✅ Latest widget config loaded successfully from server");
       console.log("HomesfyChat: 📋 Config keys:", Object.keys(remoteTheme).join(', '));
