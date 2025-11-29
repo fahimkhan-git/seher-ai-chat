@@ -1505,4 +1505,20 @@
   }
 }
 
+/* iPhone SE specific adjustments - move modal and widget lower */
+@media (max-width: 375px) and (max-height: 667px) {
+  .homesfy-widget__modal {
+    bottom: 60px !important;
+  }
+
+  .homesfy-widget {
+    bottom: 75px !important;
+  }
+
+  .homesfy-widget__bottom-left,
+  .homesfy-widget__bottom-right {
+    bottom: 75px !important;
+  }
+}
+
 
