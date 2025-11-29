@@ -22,9 +22,9 @@
   <div class="info">
     <h1>🧪 Testing Widget Locally</h1>
     <p><strong>Widget URL:</strong> <span style="color: #6158ff;">http://localhost:5001/widget.js</span> (Local - for testing code changes)</p>
-    <p><strong>API URL:</strong> <span id="api-url" style="color: #28a745;">https://api-three-pearl.vercel.app</span> <button onclick="toggleApiUrl()" style="margin-left: 10px; padding: 5px 10px; cursor: pointer;">Switch to Local API</button></p>
+    <p><strong>API URL:</strong> <span id="api-url" style="color: #ff6b6b;">http://localhost:4000</span> <button onclick="toggleApiUrl()" style="margin-left: 10px; padding: 5px 10px; cursor: pointer;">Switch to Production API</button></p>
     <p><strong>Project ID:</strong> 5796</p>
-    <p><strong>✅ Current Setup:</strong> Using <strong>local widget code</strong> with <strong>production API config</strong> (live config from Vercel)</p>
+    <p><strong>✅ Current Setup:</strong> Using <strong>local widget code</strong> with <strong>local API config</strong> (changes reflect immediately)</p>
     <p><strong>💡 Tip:</strong> Add <code>?widget_cache_bust=true</code> to URL to force fresh config</p>
     <p><strong>💡 Tip:</strong> Use <code>HomesfyChatClearCache()</code> in console to clear config cache</p>
   </div>
@@ -35,15 +35,22 @@
 
   <script>
     // Toggle between local and production API
-    let useLocalApi = false; // Start with production API (live config)
+    let useLocalApi = true; // Start with LOCAL API (to see local config changes immediately)
     function toggleApiUrl() {
       useLocalApi = !useLocalApi;
       const apiUrl = useLocalApi ? 'http://localhost:4000' : 'https://api-three-pearl.vercel.app';
       const buttonText = useLocalApi ? 'Switch to Production API' : 'Switch to Local API';
+      const apiUrlColor = useLocalApi ? '#ff6b6b' : '#28a745';
+      const setupText = useLocalApi 
+        ? 'Using <strong>local widget code</strong> with <strong>local API config</strong> (changes reflect immediately)' 
+        : 'Using <strong>local widget code</strong> with <strong>production API config</strong> (live config from Vercel)';
+      
       document.getElementById('api-url').textContent = apiUrl;
-      document.getElementById('api-url').style.color = useLocalApi ? '#ff6b6b' : '#28a745';
+      document.getElementById('api-url').style.color = apiUrlColor;
       document.getElementById('widget-script').setAttribute('data-api-base-url', apiUrl);
       document.querySelector('button').textContent = buttonText;
+      document.querySelector('.info p:nth-of-type(4)').innerHTML = '<strong>✅ Current Setup:</strong> ' + setupText;
+      
       // Clear cache and reload page to reinitialize widget
       if (window.HomesfyChatClearCache) {
         window.HomesfyChatClearCache();
@@ -52,21 +59,27 @@
     }
   </script>
 
-  <!-- LOCAL WIDGET SCRIPT - Testing local widget code with PRODUCTION API config -->
+  <!-- LOCAL WIDGET SCRIPT - Testing local widget code with LOCAL API config -->
   <!-- 
     ✅ This setup:
     - Uses LOCAL widget.js (for testing code changes)
-    - Uses PRODUCTION API (to get live config from Vercel)
-    - Best of both: test widget code + use live config
+    - Uses LOCAL API (to see config changes immediately - no restart needed!)
+    - Perfect for development: edit config file → refresh browser → see changes
     
-    💡 To test with local API: Change data-api-base-url to "http://localhost:4000"
+    💡 Workflow:
+    1. Edit apps/api/data/widget-config.json (change colors, messages, etc.)
+    2. Save the file
+    3. Refresh browser → changes appear immediately!
+    4. When ready, push to git → changes appear on live site
+    
+    💡 To test with production API: Click "Switch to Production API" button
     💡 To force fresh config: Add ?widget_cache_bust=true to URL
   -->
   <script
     id="widget-script"
     src="http://localhost:5001/widget.js"
     data-project="5796"
-    data-api-base-url="https://api-three-pearl.vercel.app"
+    data-api-base-url="http://localhost:4000"
     data-microsite="microsite-1"
     async
   ></script>
@@ -81,16 +94,16 @@
       async
     ></script>
   -->
-  <!-- 
-    PRODUCTION SCRIPT (commented out - use for production):
-    <script
+  
+    <!-- PRODUCTION SCRIPT (commented out - use for production): -->
+    <!-- <script
       src="https://widget-eight-ebon.vercel.app/widget.js"
       data-project="5796"
       data-api-base-url="https://api-three-pearl.vercel.app"
       data-microsite="microsite-1"
       async
-    ></script>
-  -->
+    ></script> -->
+ 
 </body>
 </html>
 
