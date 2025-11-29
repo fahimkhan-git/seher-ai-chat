@@ -1307,7 +1307,7 @@
   font-size: 18px;
   font-weight: 700;
   color: #1a1a1a;
-  margin: 0 0 6px 0;
+  margin: 0 0 10px 0;
   line-height: 1.2;
 }
 
@@ -1390,7 +1390,7 @@
 
   .homesfy-widget__modal-title {
     font-size: 14px;
-    margin: 0 0 2px 0;
+    margin: 0 0 6px 0;
     line-height: 1.2;
   }
 
@@ -1456,7 +1456,7 @@
 
   .homesfy-widget__modal-title {
     font-size: 13px;
-    margin: 0 0 2px 0;
+    margin: 0 0 5px 0;
     line-height: 1.15;
   }
 
@@ -1493,6 +1493,7 @@
 
   .homesfy-widget__modal-title {
     font-size: 12px;
+    margin: 0 0 4px 0;
   }
 
   .homesfy-widget__modal-message {
