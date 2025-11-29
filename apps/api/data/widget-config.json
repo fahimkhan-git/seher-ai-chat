@@ -3,7 +3,7 @@
     {
       "id": "b70b6522-70ee-40f0-b5a2-1ca3635b3e74",
       "projectId": "default",
-      "agentName": "Ziya from Homesfy",
+      "agentName": "Ziya",
       "avatarUrl": "https://v2assets.zopim.io/2F4uasrDz8AwB7cxrCz3igHZtZovK0w4-concierge?1759235162633",
       "primaryColor": "#039b5a",
       "followupMessage": "Sure… I'll send that across right away!",
@@ -14,7 +14,7 @@
       "thankYouMessage": "Thanks! Our expert will call you shortly 📞",
       "bubblePosition": "bottom-left",
       "autoOpenDelayMs": 4000,
-      "welcomeMessage": "Hey, I'm Ziya from Homesfy! How can I help you understand this project?",
+      "welcomeMessage": "Hey, I'm Ziya! How may I help you?",
       "createdAt": "2025-11-07T17:15:11.270Z",
       "updatedAt": "2025-11-26T17:22:56.314Z",
       "propertyInfo": {

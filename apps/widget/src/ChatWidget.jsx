@@ -1814,7 +1814,7 @@ export function ChatWidget({
                 Hey, I'm {resolvedTheme.agentName}!
               </h3>
               <p className="homesfy-widget__modal-message">
-                How can I help you?
+                How may I help you?
               </p>
             </div>
             <button
