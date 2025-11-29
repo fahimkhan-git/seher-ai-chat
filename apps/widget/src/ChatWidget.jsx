@@ -453,7 +453,7 @@ export function ChatWidget({
   const messagesEndRef = useRef(null);
   const hasShownRef = useRef(preservedState?.hasShown || false);
   const autoOpenTimeoutRef = useRef(null);
-  const autoOpenInitializedRef = useRef(preservedState?.hasShown || false); // Track if auto-open has been set up
+  const autoOpenInitializedRef = useRef(false); // Track if auto-open has been set up (always start fresh)
   const isIntentionallyOpenRef = useRef(preservedState?.isIntentionallyOpen || false); // Track if widget was intentionally opened (prevents auto-close)
   const componentMountIdRef = useRef(preservedState?.componentMountId || `widget-${Date.now()}-${Math.random()}`); // Unique ID to track remounts
   const lastOpenTimeRef = useRef(preservedState?.lastOpenTime || 0); // Track when widget was last opened (to prevent immediate closes)
@@ -471,8 +471,9 @@ export function ChatWidget({
       if (preservedState.lastOpenTime) {
         lastOpenTimeRef.current = preservedState.lastOpenTime;
       }
-      if (preservedState.hasShown) {
-        autoOpenInitializedRef.current = true;
+      // NOTE: Don't restore hasShown or autoOpenInitialized - allow modal to show on new page loads
+      // Only restore if widget was actually open
+      if (preservedState.hasShown && preservedState.isOpen) {
         hasShownRef.current = true;
       }
       console.log("HomesfyChat: Restored state from preserved state store");
@@ -773,8 +774,10 @@ export function ChatWidget({
     autoOpenInitializedRef.current = true;
 
     // Prevent multiple auto-open attempts - if already shown, don't set up timeout
-    if (hasShownRef.current || isOpenRef.current) {
-      console.log("HomesfyChat: Skipping auto-open setup - widget already shown or open");
+    // NOTE: We still want to show the modal even if hasShownRef is true (for new page loads)
+    // Only skip if widget is currently open
+    if (isOpenRef.current) {
+      console.log("HomesfyChat: Skipping auto-open setup - widget already open");
       return undefined;
     }
     
@@ -791,12 +794,13 @@ export function ChatWidget({
     console.log("HomesfyChat: Setting up modal display timeout - Mount ID:", componentMountIdRef.current, "Delay:", delay);
     autoOpenTimeoutRef.current = window.setTimeout(() => {
       // Double-check before showing modal (in case user already opened chat)
-      if (!hasShownRef.current && !isOpenRef.current && !isIntentionallyOpenRef.current) {
+      // Show modal if chat is not open (regardless of hasShownRef - modal can show on new page loads)
+      if (!isOpenRef.current && !isIntentionallyOpenRef.current) {
         console.log("HomesfyChat: Showing modal - Mount ID:", componentMountIdRef.current);
         setShowModal(true);
         trackEvent("modal_shown");
       } else {
-        console.log("HomesfyChat: Skipping modal - already shown or open - Mount ID:", componentMountIdRef.current);
+        console.log("HomesfyChat: Skipping modal - chat already open - Mount ID:", componentMountIdRef.current);
       }
       autoOpenTimeoutRef.current = null;
     }, delay);
